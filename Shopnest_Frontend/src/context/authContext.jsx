@@ -40,6 +40,7 @@ export const AuthProvider = ({ children }) => {
     token,
     isAdmin: user?.role === "admin", // 3. Safe optional chaining to prevent crashes when user is null
     isAuthentic: !!user,
+    isVerified: user?.isVerified === true  ,
     login,
     logout,
   };

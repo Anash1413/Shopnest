@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import useAuth from "../hooks/useFetch"
+import { useAuth } from "../hooks/useAuth"
 import { NavLink } from 'react-router-dom';
 import logoImg from '../assets/Logo.png';
 import { 
@@ -11,7 +11,8 @@ import {
   LogOut, 
   Menu, 
   X,
-  Layers
+  Layers,
+  LayoutDashboard
 } from 'lucide-react';
 
 const Navbar = () => {
@@ -56,11 +57,16 @@ const Navbar = () => {
               <Layers className="h-4 w-4" />
               Home
             </NavLink>
-              <NavLink to="/cart" className={navLinkClass}>
+            {!isAdmin && <NavLink to="/cart" className={navLinkClass}>
               <ShoppingCart className="h-4 w-4" />
               Cart
-            </NavLink>
-            <NavLink to="/orders" className={navLinkClass}>
+            </NavLink> }
+            {isAdmin && <NavLink to="/admin" className={navLinkClass}>
+              <LayoutDashboard className="h-4 w-4" />
+              Dashboard
+            </NavLink> }
+              
+            <NavLink to={isAdmin?"/admin/orders":"/orders"} className={navLinkClass}>
               <ClipboardList className="h-4 w-4" />
               Orders
             </NavLink>
@@ -139,43 +145,68 @@ const Navbar = () => {
         }`}
       >
         <div className="px-4 py-5 space-y-2">
-          <NavLink to="/" onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
-            <Layers className="h-5 w-5" />
-            Home
-          </NavLink>
-          <NavLink to="/cart" onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
-            <ShoppingCart className="h-5 w-5" />
-            Cart
-          </NavLink>
-          <NavLink to="/orders" onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
-            <ClipboardList className="h-5 w-5" />
-            Orders
-          </NavLink>
-          <NavLink to="/profile" onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
-            <User className="h-5 w-5" />
-            Profile
-          </NavLink>
+          {isAuthentic && (
+            <>
+              <NavLink to="/" onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
+                <Layers className="h-5 w-5" />
+                Home
+              </NavLink>
+              {!isAdmin && (
+                <NavLink to="/cart" onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
+                  <ShoppingCart className="h-5 w-5" />
+                  Cart
+                </NavLink>
+              )}
+              {isAdmin && (
+                <NavLink to="/admin" onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
+                  <LayoutDashboard className="h-5 w-5" />
+                  Dashboard
+                </NavLink>
+              )}
+              <NavLink to={isAdmin ? "/admin-orders" : "/orders"} onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
+                <ClipboardList className="h-5 w-5" />
+                Orders
+              </NavLink>
+              <NavLink to="/profile" onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
+                <User className="h-5 w-5" />
+                Profile
+              </NavLink>
+            </>
+          )}
 
           <hr className="border-slate-900 my-4" />
 
           {/* Mobile Auth Actions */}
           <div className="grid grid-cols-2 gap-3 pt-2">
-            <NavLink
-              to="/login"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 font-semibold text-sm hover:text-white transition-all duration-300"
-            >
-              <LogIn className="h-4 w-4" />
-              Sign In
-            </NavLink>
-            <NavLink
-              to="/logout"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/10 text-rose-450 font-semibold text-sm hover:bg-rose-500/15 transition-all duration-300"
-            >
-              <LogOut className="h-4 w-4" />
-              Logout
-            </NavLink>
+            {!isAuthentic ? (
+              <>
+                <NavLink
+                  to="/login"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 font-semibold text-sm hover:text-white transition-all duration-300"
+                >
+                  <LogIn className="h-4 w-4" />
+                  Sign In
+                </NavLink>
+                <NavLink
+                  to="/register"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 font-semibold text-sm hover:text-white transition-all duration-300"
+                >
+                  <LogIn className="h-4 w-4" />
+                  Register
+                </NavLink>
+              </>
+            ) : (
+              <NavLink
+                to="/logout"
+                onClick={() => setIsOpen(false)}
+                className="col-span-2 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-rose-500/10 border border-rose-500/10 text-rose-450 font-semibold text-sm hover:bg-rose-500/15 transition-all duration-300"
+              >
+                <LogOut className="h-4 w-4" />
+                Logout
+              </NavLink>
+            )}
           </div>
         </div>
       </div>

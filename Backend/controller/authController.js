@@ -111,3 +111,18 @@ exports.getAllUsers = (req, res, next) => {
         .json({ message: "error during user fetching 003" });
     })
 }
+
+exports.sendOtp = async (req , res , next) =>{
+  const User = await userModel.find({email: req.body})
+   const otp = Math.floor(100000 + Math.random()*900000)
+        const otpExpires = new Date( Date.now() + 10*60*1000)
+        User.otp = otp
+        User.otpExpires = otpExpires
+        await User.save()
+        await sendMaiil(User.email, "Your 2FA Login Code", `Your OTP code is: ${otp}`)
+        return res.json({ 
+          twoFARequired: true, 
+          message: " OTP sent to your email",
+          email: User.email 
+        })
+}
