@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import useAuth from "../hooks/useFetch"
 import { NavLink } from 'react-router-dom';
 import logoImg from '../assets/Logo.png';
 import { 
@@ -14,7 +15,7 @@ import {
 } from 'lucide-react';
 
 const Navbar = () => {
-  
+  const {isAdmin , isAuthentic} = useAuth()
   const [isOpen, setIsOpen] = useState(false);
 
   // Styling helpers for active/inactive links
@@ -41,49 +42,39 @@ const Navbar = () => {
           <div className="flex items-center gap-3">
             <NavLink to="/" className="flex items-center gap-2.5 group">
              <img src={logoImg} alt="ShopNest Logo" className="h-10 w-10 object-contain rounded-xl group-hover:scale-105 transition-transform duration-300" />
-              <span className="text-2xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-violet-400 via-indigo-200 to-cyan-400 group-hover:opacity-90 transition-opacity">
+              <span className="text-2xl font-bold tracking-tight bg-clip-text text-transparent bg-linear-to-r from-violet-400 via-indigo-200 to-cyan-400 group-hover:opacity-90 transition-opacity">
                 ShopNest
               </span>
             </NavLink>
           </div>
 
           {/* Desktop Navigation Links */}
-          <nav className="hidden md:flex items-center gap-2">
+          <nav className="hidden md:flex wf items-center gap-2">
+           {isAuthentic && 
+          <>
             <NavLink to="/" className={navLinkClass}>
               <Layers className="h-4 w-4" />
               Home
+            </NavLink>
+              <NavLink to="/cart" className={navLinkClass}>
+              <ShoppingCart className="h-4 w-4" />
+              Cart
             </NavLink>
             <NavLink to="/orders" className={navLinkClass}>
               <ClipboardList className="h-4 w-4" />
               Orders
             </NavLink>
-            <NavLink to="/cart" className={navLinkClass}>
-              <ShoppingCart className="h-4 w-4" />
-              Cart
-            </NavLink>
             <NavLink to="/profile" className={navLinkClass}>
               <User className="h-4 w-4" />
               Profile
             </NavLink>
+          </>}
           </nav>
 
           {/* Desktop Auth Section */}
           <div className="hidden md:flex items-center gap-3">
-            <NavLink 
-              to="/login" 
-              className={({ isActive }) => 
-                `flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold border transition-all duration-300 ${
-                  isActive 
-                    ? 'bg-slate-800 text-white border-slate-700 shadow-lg shadow-black/10'
-                    : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700'
-                }`
-              }
-            >
-              <LogIn className="h-4 w-4" />
-              Sign In
-            </NavLink>
-
-            <NavLink 
+          {isAuthentic? 
+          <NavLink 
               to="/logout" 
               className={({ isActive }) => 
                 `flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold border transition-all duration-300 ${
@@ -96,6 +87,35 @@ const Navbar = () => {
               <LogOut className="h-4 w-4" />
               Logout
             </NavLink>
+           : <>
+            <NavLink 
+              to="/login" 
+              className={({ isActive }) => 
+                `flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold border transition-all duration-300 ${
+                  isActive 
+                    ? 'bg-slate-800 text-white border-slate-700 shadow-lg shadow-black/10'
+                    : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700'
+                }`
+              }
+            >
+              <LogIn className="h-4 w-4" />
+              Sign In
+            </NavLink><NavLink 
+              to="/register" 
+              className={({ isActive }) => 
+                `flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold border transition-all duration-300 ${
+                  isActive 
+                    ? 'bg-slate-800 text-white border-slate-700 shadow-lg shadow-black/10'
+                    : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700'
+                }`
+              }
+            >
+              <LogIn className="h-4 w-4" />
+              Register
+            </NavLink>
+           </>
+          }
+           
           </div>
 
           {/* Mobile Menu Burger Button */}
@@ -115,7 +135,7 @@ const Navbar = () => {
       {/* Mobile Drawer Menu */}
       <div 
         className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${
-          isOpen ? 'max-h-[500px] border-t border-slate-900/80 bg-[#0f172a]/95 backdrop-blur-xl' : 'max-h-0'
+          isOpen ? 'max-h-125 border-t border-slate-900/80 bg-[#0f172a]/95 backdrop-blur-xl' : 'max-h-0'
         }`}
       >
         <div className="px-4 py-5 space-y-2">
@@ -123,13 +143,13 @@ const Navbar = () => {
             <Layers className="h-5 w-5" />
             Home
           </NavLink>
-          <NavLink to="/orders" onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
-            <ClipboardList className="h-5 w-5" />
-            Orders
-          </NavLink>
           <NavLink to="/cart" onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
             <ShoppingCart className="h-5 w-5" />
             Cart
+          </NavLink>
+          <NavLink to="/orders" onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
+            <ClipboardList className="h-5 w-5" />
+            Orders
           </NavLink>
           <NavLink to="/profile" onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
             <User className="h-5 w-5" />
