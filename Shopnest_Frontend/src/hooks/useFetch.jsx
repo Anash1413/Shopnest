@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-
+/** 
+ * Custom hook for GET requests 
+ * @param {string} url - API endpoint to fetch 
+ * @param {object} options - Fetch options (headers, etc.) 
+ */
 const useFetch = (url, options = {}) => {
   const [data, setData] = useState(null);
   const [isLoading, setisLoading] = useState(false);
@@ -9,17 +13,17 @@ const useFetch = (url, options = {}) => {
    const controller = new AbortController();
     let isMounted = true;
 
-    const fetchdata = async () =>{
-        setisLoading(true)
-         try {
-         const res = fetch(url , {...options , signal:controller.signal})
-        if(!(await res).ok){
-            throw new Error(`HTTP Error! code 001 BY ANASH Status: ${res.status}`)
+    const fetchdata = async () => {
+      setisLoading(true);
+      try {
+        const res = await fetch(url, { ...options, signal: controller.signal });
+        if (!res.ok) {
+          throw new Error(`HTTP Error! code 001 BY ANASH Status: ${res.status}`);
         }
-        const json = (await res).json
-        if(isMounted){
-            setData(json)
-            setError(null)
+        const json = await res.json();
+        if (isMounted) {
+          setData(json);
+          setError(null);
         }
        
      } catch (error) {

@@ -1,0 +1,14 @@
+{
+  "name": "shopnest",
+  "version": "1.0.0",
+  "description": "ShopNest MERN stack application",
+  "scripts": {
+    "backend": "npm start --prefix Backend",
+    "frontend": "npm run dev --prefix Shopnest_Frontend",
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\"" ,
+    "start": "concurrently \"npm run backend\" \"npm run frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

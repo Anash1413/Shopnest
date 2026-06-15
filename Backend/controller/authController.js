@@ -18,7 +18,7 @@ exports.verify_otp = async (req, res, next) => {
     user.otp = undefined
     user.otpExpires = undefined
     await user.save()
-    const token = generateToken(user.toObject())
+    const token = generateToken(user._id)
     console.log("user verified successfully",)
     return res.json({
       message:"user verified successfully",

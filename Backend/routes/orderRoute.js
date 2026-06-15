@@ -4,5 +4,5 @@ const { getAllOrders, createOrder, updatetOrderStatus, deleteOrders, getMyOrder 
 const OrderRouter = express.Router()
 OrderRouter.route('/').get(protect,IsAdmin ,getAllOrders).post(protect,IsAdmin ,createOrder).put(protect,IsAdmin ,updatetOrderStatus)
 OrderRouter.get("/my-orders", getMyOrder)
-OrderRouter.get('/' ,protect, IsAdmin)
+// OrderRouter.get('/' ,protect, IsAdmin)
 module.exports = OrderRouter
