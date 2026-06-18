@@ -33,7 +33,7 @@ exports.IsAdmin = (req , res , next)=>
         }
         else {
              console.log("error during admin authorization 006");
-    return res.status(401).json({ message: "error during admin authorization 006" }).redirect("api/auth/login");
-            }
+             return res.status(403).json({ message: "error during admin authorization 006" });
+        }
  }
 

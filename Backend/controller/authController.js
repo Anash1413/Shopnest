@@ -53,12 +53,8 @@ exports.postSignup = async (req, res, next) => {
     });
     if (User) {
     const UserObj = User.toObject()
-      const message = `welcone ${name} in shop nest developed by the GREAT ANASH KHAN
-         here is your otp for registraion - ${otp}`;
-      sendMaiil(email, "otp for Shopnest registration ", message);
-      console.log('user created and otp')
-      res.status(200).json({
-        User: UserObj,
+       res.status(200).json({
+       message:"user registeation confirmed"
       })
     } else {
       return res.status(400).json({ message: "invalid user data" });
@@ -75,7 +71,7 @@ exports.postLogin = async (req, res, next) => {
     const User = await userModel.findOne({ email });
     if (User && bcrypt.compareSync(password, User.password)) {
       const UserObj = User.toObject()
-      console.log("user logged in")
+      delete UserObj.password
       if(User.twoFA){
         const otp = Math.floor(100000 + Math.random()*900000)
         const otpExpires = new Date( Date.now() + 10*60*1000)
@@ -84,7 +80,7 @@ exports.postLogin = async (req, res, next) => {
         await User.save()
         await sendMaiil(User.email, "Your 2FA Login Code", `Your OTP code is: ${otp}`)
         return res.json({ 
-          twoFARequired: true, 
+          twoFA: true, 
           message: "Please verify the OTP sent to your email",
           email: User.email 
         })
@@ -113,7 +109,7 @@ exports.getAllUsers = (req, res, next) => {
 }
 
 exports.sendOtp = async (req , res , next) =>{
-  const User = await userModel.find({email: req.body})
+  const User = await userModel.findById(req.user._id)
    const otp = Math.floor(100000 + Math.random()*900000)
         const otpExpires = new Date( Date.now() + 10*60*1000)
         User.otp = otp
@@ -121,7 +117,7 @@ exports.sendOtp = async (req , res , next) =>{
         await User.save()
         await sendMaiil(User.email, "Your 2FA Login Code", `Your OTP code is: ${otp}`)
         return res.json({ 
-          twoFARequired: true, 
+          twoFA: true, 
           message: " OTP sent to your email",
           email: User.email 
         })

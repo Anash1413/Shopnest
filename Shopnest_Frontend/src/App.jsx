@@ -15,6 +15,12 @@ import AdminOrders from "./pages/AdminOrders.jsx"
 import AdminOrderDetails from "./pages/AdminOrderDetails.jsx"
 import Register from "./pages/Register.jsx"
 import Footer from "./components/Footer.jsx"
+import OTP from "./pages/OTP.jsx"
+import Products from "./pages/Products.jsx"
+import NotFound from "./pages/NotFound.jsx"
+import AddProduct from "./pages/AddProduct.jsx"
+import { Toaster } from "react-hot-toast"
+
 
 const Layout = () =>{
   return(
@@ -45,7 +51,7 @@ const router = createBrowserRouter([
     path:'/logout',
     element:<Logout/>
   },
-  {element: <ProtectedRouts/>
+  {element: <ProtectedRouts adminOnly={false}/>
     ,children:[
       {
     path:'/orders',
@@ -68,9 +74,17 @@ const router = createBrowserRouter([
   element:<PaymentDetails/> 
 },
 {
+  path:'/products',
+  element:<Products/>
+},
+{
   path:'/product/:id',
 element:<ProductDetail/>
 },
+{
+  path:'/verify',
+element:<OTP/>
+}
 ]
   },
   // --- Admin Only Routes ---
@@ -78,16 +92,22 @@ element:<ProductDetail/>
     element: <ProtectedRouts adminOnly={true} />, // Wrapper layout with props
     children: [
       { path: "/admin", element: <AdminDashboard /> },
-      { path:"/admin-orders" , element:<AdminOrders/>},
-      { path:"/admin-orders/:id" , element:<AdminOrderDetails/>}
+      { path:"/admin/orders" , element:<AdminOrders/>},
+      { path:"/admin-orders/:id" , element:<AdminOrderDetails/>},
+      { path: "/admin/add-product", element: <AddProduct /> }
     ],
   },
+  {
+    path: "*",
+    element: <NotFound />
+  }
     ]
   }
  ])
 function App() {
-  return ( <div className="bg-black">
 
+  return ( <div className="bg-black">
+ <Toaster position="bottom-center" />
   <RouterProvider  router={router}/>
   </div>
   )

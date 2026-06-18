@@ -175,7 +175,7 @@ function Home() {
 
           {/* Grid Layout containing Product Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[4vw] md:gap-[2.5vw]">
-            <ProductCard />
+            <ProductCard limit={6}/>
           </div>
 
         </div>

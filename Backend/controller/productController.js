@@ -50,7 +50,7 @@ exports.createProduct = async ( req ,res , next)=>{
       } catch (error) {
         const message = "error in creating product 009"
         console.log(message,error)
-        return res.json({message:message})
+        return res.status(400).json({message:message, error: error.message})
       }
 }
 exports.updateProductById =async ( req ,res , next)=>{
@@ -73,17 +73,25 @@ exports.updateProductById =async ( req ,res , next)=>{
       } catch (error) {
         const message = "error in updating product 010"
         console.log(message,error)
-        return res.json({message:message})
+        return res.status(400).json({message:message, error: error.message})
       }
 }
 
 exports.deleteProduct = async ( req ,res , next)=>{
         try { 
-         await productModel.findByIdAndDelete(req.params.id)
-         console.log("product deleted")
+         const id = req.params.id || req.body.id || req.query.id
+         if (!id) {
+           return res.status(400).json({ message: "Product ID is required for deletion" })
+         }
+         const product = await productModel.findByIdAndDelete(id)
+         if (!product) {
+           return res.status(404).json({ message: "Product not found" })
+         }
+         console.log("product deleted successfully:", id)
+         return res.json({ message: "Product deleted successfully" })
       } catch (error) {
         const message = "error in deleting product 012"
         console.log(message,error)
-        return res.json({message:message})
+        return res.status(400).json({message:message})
       }
     }

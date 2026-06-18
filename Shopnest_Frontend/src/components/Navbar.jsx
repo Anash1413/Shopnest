@@ -12,7 +12,8 @@ import {
   Menu, 
   X,
   Layers,
-  LayoutDashboard
+  LayoutDashboard,
+  Plus
 } from 'lucide-react';
 
 const Navbar = () => {
@@ -57,15 +58,26 @@ const Navbar = () => {
               <Layers className="h-4 w-4" />
               Home
             </NavLink>
+            <NavLink to="/products" className={navLinkClass}>
+              <ShoppingBag className="h-4 w-4" />
+              Products
+            </NavLink>
             {!isAdmin && <NavLink to="/cart" className={navLinkClass}>
               <ShoppingCart className="h-4 w-4" />
               Cart
             </NavLink> }
-            {isAdmin && <NavLink to="/admin" className={navLinkClass}>
-              <LayoutDashboard className="h-4 w-4" />
-              Dashboard
-            </NavLink> }
-              
+            {isAdmin && (
+              <>
+                <NavLink to="/admin" className={navLinkClass}>
+                  <LayoutDashboard className="h-4 w-4" />
+                  Dashboard
+                </NavLink>
+                <NavLink to="/admin/add-product" className={navLinkClass}>
+                  <Plus className="h-4 w-4" />
+                  Add Product
+                </NavLink>
+              </>
+            )}
             <NavLink to={isAdmin?"/admin/orders":"/orders"} className={navLinkClass}>
               <ClipboardList className="h-4 w-4" />
               Orders
@@ -151,17 +163,27 @@ const Navbar = () => {
                 <Layers className="h-5 w-5" />
                 Home
               </NavLink>
-              {!isAdmin && (
+              <NavLink to="/products" onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
+                <ShoppingBag className="h-5 w-5" />
+                Products
+              </NavLink>
+              {!isAdmin && 
                 <NavLink to="/cart" onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
                   <ShoppingCart className="h-5 w-5" />
                   Cart
                 </NavLink>
-              )}
+              }
               {isAdmin && (
-                <NavLink to="/admin" onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
-                  <LayoutDashboard className="h-5 w-5" />
-                  Dashboard
-                </NavLink>
+                <>
+                  <NavLink to="/admin" onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
+                    <LayoutDashboard className="h-5 w-5" />
+                    Dashboard
+                  </NavLink>
+                  <NavLink to="/admin/add-product" onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
+                    <Plus className="h-5 w-5" />
+                    Add Product
+                  </NavLink>
+                </>
               )}
               <NavLink to={isAdmin ? "/admin-orders" : "/orders"} onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
                 <ClipboardList className="h-5 w-5" />

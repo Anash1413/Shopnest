@@ -8,6 +8,8 @@ const adminRouter = require('./routes/adminRoute')
 const ProductRouter = require('./routes/productRoute')
 const PaymentRouter = require('./routes//paymentRoute')
 const OrderRouter = require('./routes/orderRoute')
+const cartRouter = require('./routes/cartRoutes')
+const favouritesRouter = require('./routes/favouritesRoutes')
 
  const app = express()
  app.use(cors({origin:process.env.FRONTEND_URL,credentials:true}))
@@ -17,6 +19,8 @@ app.use("/api/auth" ,authRouter )
 app.use("/api/admin" ,adminRouter )
 app.use("/api/product" ,ProductRouter )
 app.use("/api/order" ,OrderRouter )
+app.use("/api" , cartRouter)
+app.use("/api" , favouritesRouter)
 // app.use("/api/payment" ,PaymentRouter )
 
  const PORT = process.env.PORT 

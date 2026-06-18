@@ -53,7 +53,7 @@ function Register() {
       } else {
         setError(result.message || 'Registration failed. Please try again.');
       }
-    } catch (err) {
+    } catch  {
       setError('Connection error. Please check your network.');
     } finally {
       setLoading(false);

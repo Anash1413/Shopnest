@@ -6,7 +6,7 @@ const {isAuthentic , isAdmin} = useAuth()
 if(!isAuthentic){
    return <Navigate to="/login" replace />
 }
-if(!adminOnly && !isAdmin){
+if(adminOnly && !isAdmin){
 return <Navigate to="/" replace />
 }
   return <Outlet />

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom'
 import { Sparkles, Send, ShieldCheck, ShieldAlert, ArrowLeft } from 'lucide-react'
 
 const OTP = () => {
-  const { user, login } = useAuth()
+  const { user, login ,token} = useAuth()
   const [confirm, setconfirm] = useState(false)
   const [loading, setloading] = useState(false)
   const [otp, setOtp] = useState('')
@@ -19,11 +19,10 @@ const OTP = () => {
       const res = await fetch('api/auth/send-otp', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email: user?.email
-        })
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+        
       })
       
       const data = await res.json()
@@ -53,7 +52,10 @@ const OTP = () => {
       const res = await fetch('api/auth/verify-otp', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+         'Authorization': `Bearer ${token}`
+
+
         },
         body: JSON.stringify({
           email: user?.email,
@@ -71,7 +73,7 @@ const OTP = () => {
       } else {
         setError(data.message || 'Invalid or expired OTP.')
       }
-    } catch () {
+    } catch  {
       setError('Verification failed. Please check your connection.')
     } finally {
       setloading(false)

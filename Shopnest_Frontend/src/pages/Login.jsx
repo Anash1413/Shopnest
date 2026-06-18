@@ -61,7 +61,7 @@ function Login() {
           login(data.User, data.User.token);
           navigate('/');
         } else {
-          setError('Failed to login. Invalid user response structure.');
+           setError('Failed to login. Invalid user response structure.');
         }
       } else {
         setError(data.message || 'Invalid email or password.');
@@ -110,7 +110,7 @@ function Login() {
       } else {
         setError(data.message || 'Invalid or expired OTP code.');
       }
-    } catch (err) {
+    } catch  {
       setError('Verification failed. Please check your connection.');
     } finally {
       setLoading(false);
@@ -139,7 +139,7 @@ function Login() {
       <div className="absolute bottom-[-10vh] right-[-10vw] w-[45vw] h-[45vw] rounded-full bg-indigo-655/10 blur-[9vw] pointer-events-none"></div>
 
       {/* Main Structural Container - Soft Frosted Glass Card */}
-      <div className="relative w-[90vw] sm:w-[55vw] lg:w-[32vw] bg-[#0c0f20]/50 border border-white/[0.06] rounded-[3vw] p-[6vw] sm:p-[3vw] backdrop-blur-xl shadow-[0_0_8vw_rgba(99,102,241,0.05)] flex flex-col gap-[4vh]">
+      <div className="relative w-[90vw] sm:w-[55vw] lg:w-[32vw] bg-[#0c0f20]/50 border border-white/6 rounded-[3vw] p-[6vw] sm:p-[3vw] backdrop-blur-xl shadow-[0_0_8vw_rgba(99,102,241,0.05)] flex flex-col gap-[4vh]">
         
         {/* Error / Success Notifications */}
         {error && (
@@ -179,7 +179,7 @@ function Login() {
                 <label className="text-[2.8vw] sm:text-[0.75vw] font-bold text-slate-400 uppercase tracking-widest ml-[0.5vw]">
                   Email Address
                 </label>
-                <div className={`flex items-center gap-[3vw] sm:gap-[1vw] p-[3.5vw] sm:p-[1vw] rounded-[1.5vw] bg-slate-950/40 border ${errors.email ? 'border-rose-500' : 'border-white/[0.06] focus-within:border-indigo-500/50'} focus-within:bg-[#0f172a]/20 transition-all`}>
+                <div className={`flex items-center gap-[3vw] sm:gap-[1vw] p-[3.5vw] sm:p-[1vw] rounded-[1.5vw] bg-slate-950/40 border ${errors.email ? 'border-rose-500' : 'border-white/6 focus-within:border-indigo-500/50'} focus-within:bg-[#0f172a]/20 transition-all`}>
                   <Mail className={`h-[2.5vh] w-[4vw] sm:w-[1.2vw] ${errors.email ? 'text-rose-500' : 'text-slate-500'}`} />
                   <input 
                     type="text" 
@@ -207,7 +207,7 @@ function Login() {
                 <label className="text-[2.8vw] sm:text-[0.75vw] font-bold text-slate-400 uppercase tracking-widest ml-[0.5vw]">
                   Password
                 </label>
-                <div className={`flex items-center gap-[3vw] sm:gap-[1vw] p-[3.5vw] sm:p-[1vw] rounded-[1.5vw] bg-slate-950/40 border ${errors.password ? 'border-rose-500' : 'border-white/[0.06] focus-within:border-indigo-500/50'} focus-within:bg-[#0f172a]/20 transition-all`}>
+                <div className={`flex items-center gap-[3vw] sm:gap-[1vw] p-[3.5vw] sm:p-[1vw] rounded-[1.5vw] bg-slate-950/40 border ${errors.password ? 'border-rose-500' : 'border-white/6 focus-within:border-indigo-500/50'} focus-within:bg-[#0f172a]/20 transition-all`}>
                   <Lock className={`h-[2.5vh] w-[4vw] sm:w-[1.2vw] ${errors.password ? 'text-rose-500' : 'text-slate-500'}`} />
                   <input 
                     type="password" 
@@ -270,7 +270,7 @@ function Login() {
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
                 placeholder="000000"
-                className="w-full text-center p-[3.5vw] sm:p-[1vw] rounded-[1.5vw] bg-slate-950/40 border border-white/[0.06] focus:border-indigo-500/50 focus:bg-[#0f172a]/25 text-[5vw] sm:text-[1.3vw] font-bold text-white tracking-widest focus:outline-hidden transition-all placeholder-slate-800"
+                className="w-full text-center p-[3.5vw] sm:p-[1vw] rounded-[1.5vw] bg-slate-950/40 border border-white/6 focus:border-indigo-500/50 focus:bg-[#0f172a]/25 text-[5vw] sm:text-[1.3vw] font-bold text-white tracking-widest focus:outline-hidden transition-all placeholder-slate-800"
               />
             </div>
 
@@ -284,7 +284,7 @@ function Login() {
               
               <button 
                 onClick={() => setShowOtp(false)}
-                className="w-full py-[1.5vh] rounded-[50vw] bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 text-[3.2vw] sm:text-[0.85vw] font-bold text-slate-350 transition-all flex items-center justify-center gap-[1.5vw] sm:gap-[0.4vw] cursor-pointer"
+                className="w-full py-[1.5vh] rounded-[50vw] bg-white/2 hover:bg-white/6 border border-white/5 text-[3.2vw] sm:text-[0.85vw] font-bold text-slate-350 transition-all flex items-center justify-center gap-[1.5vw] sm:gap-[0.4vw] cursor-pointer"
               >
                 <ArrowLeft className="h-[2vh] w-[3.5vw] sm:w-[1.1vw]" />
                 <span>Back to Sign In</span>
