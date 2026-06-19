@@ -19,6 +19,7 @@ import OTP from "./pages/OTP.jsx"
 import Products from "./pages/Products.jsx"
 import NotFound from "./pages/NotFound.jsx"
 import AddProduct from "./pages/AddProduct.jsx"
+import Favourites from "./pages/Favourites.jsx"
 import { Toaster } from "react-hot-toast"
 
 
@@ -64,6 +65,10 @@ const router = createBrowserRouter([
 {
   path:'/profile',
   element:  <Profile />
+}  ,
+{
+  path:'/favourites',
+  element: <Favourites />
 }  ,
 {
   path:'/orders/:id',

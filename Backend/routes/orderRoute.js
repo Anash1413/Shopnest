@@ -1,8 +1,8 @@
 const express = require('express')
 const { protect, IsAdmin } = require('../middlewares/protect')
-const { getAllOrders, createOrder, updatetOrderStatus, deleteOrders, getMyOrder } = require('../controller/orderController')
+const { getAllOrders, createOrder, updatetOrderStatus, getMyOrder, getOrderDetails } = require('../controller/orderController')
 const OrderRouter = express.Router()
-OrderRouter.route('/').get(protect,IsAdmin ,getAllOrders).post(protect,IsAdmin ,createOrder).put(protect,IsAdmin ,updatetOrderStatus)
-OrderRouter.get("/my-orders", getMyOrder)
-// OrderRouter.get('/' ,protect, IsAdmin)
+OrderRouter.route('/').get(protect, IsAdmin, getAllOrders).post(protect, createOrder).put(protect, IsAdmin, updatetOrderStatus)
+OrderRouter.get("/my-orders", protect, getMyOrder)
+OrderRouter.get("/:id", protect, getOrderDetails)
 module.exports = OrderRouter

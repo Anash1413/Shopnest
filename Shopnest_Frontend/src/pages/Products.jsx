@@ -10,13 +10,21 @@ import {
   ArrowUpDown,
   Sliders
 } from 'lucide-react'
+import { useEffect } from 'react'
 
 function Products() {
+  useEffect(() => {
+    document.title = 'Products'
+    
+    
+    
+  }, [])
+  
   // --- FILTERS & STATE (For styling/demo interaction) ---
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [selectedBrand, setSelectedBrand] = useState('All')
-  const [priceRange, setPriceRange] = useState(250)
+  const [priceRange, setPriceRange] = useState(10000000)
   const [sortBy, setSortBy] = useState('Featured')
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false)
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false)
@@ -120,7 +128,7 @@ function Products() {
                   setSearchTerm('')
                   setSelectedCategory('All')
                   setSelectedBrand('All')
-                  setPriceRange(250)
+                  setPriceRange(10000000)
                 }}
                 className="text-[0.85vw] text-indigo-400 hover:text-indigo-300 font-semibold transition-colors cursor-pointer"
               >
@@ -449,7 +457,7 @@ function Products() {
                   setSearchTerm('')
                   setSelectedCategory('All')
                   setSelectedBrand('All')
-                  setPriceRange(250)
+                  setPriceRange(10000000)
                 }}
                 className="flex-1 py-[1.5vh] rounded-[50vw] border border-white/10 text-slate-300 font-bold text-[3.5vw]"
               >

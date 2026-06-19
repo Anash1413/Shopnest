@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { 
@@ -14,6 +14,9 @@ import {
 } from 'lucide-react';
 
 function Register() {
+  useEffect(() => {
+        document.title = 'Register' 
+  }, [])
   const navigate = useNavigate();
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import useFetch from '../hooks/useFetch';
 import { Link } from 'react-router-dom';
 import { 
@@ -15,18 +15,47 @@ import {
   Loader2,
   ShoppingBag,
   Check,
-  Tag
+  Tag,
+  Trash2
 } from "lucide-react";
 import { useDispatch } from 'react-redux';
 import { addToCart } from '../redux/cartSlice';
 import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
+import Swal from 'sweetalert2';
 
 const ProductCard =  ({limit, products}) => {
   const { isAdmin } = useAuth();
   const [favourites, setFavourites] = useState([])
   const [cartItems, setCartItems] = useState([])
   const dispatch = useDispatch()
+  const token = localStorage.getItem("token");
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!token) return;
+      try {
+        const favRes = await fetch('/api/favourites', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (favRes.ok) {
+          const favData = await favRes.json();
+          setFavourites((favData.favourites || []).map(item => item._id));
+        }
+
+        const cartRes = await fetch('/api/cart', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (cartRes.ok) {
+          const cartData = await cartRes.json();
+          setCartItems((cartData.cart || []).map(item => item._id));
+        }
+      } catch (err) {
+        console.error("Error syncing User Data in ProductCard:", err);
+      }
+    };
+    fetchUserData();
+  }, [token]);
   const handleaddtocart = async (id)=>{
          try {
            await dispatch(addToCart(id))
@@ -38,6 +67,56 @@ const ProductCard =  ({limit, products}) => {
 
   }
 
+  const handleDelete = async (productId) => {
+    const result = await Swal.fire({
+      title: "Delete Product Profile?",
+      text: "This operation will permanently erase this product record from the ShopNest catalog.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Confirm Delete",
+      cancelButtonText: "Cancel",
+      reverseButtons: true,
+      buttonsStyling: false,
+      background: "#0c0f1e",
+      color: "#e2e8f0",
+      customClass: {
+        popup: "border border-slate-800/80 rounded-2xl shadow-2xl backdrop-blur-xl bg-slate-900/90 p-6 font-sans text-center",
+        title: "text-lg font-extrabold text-white tracking-tight uppercase mb-2",
+        htmlContainer: "text-slate-400 text-xs font-semibold leading-relaxed mb-6",
+        confirmButton: "px-6 py-2.5 rounded-xl bg-rose-650 hover:bg-rose-500 text-white font-bold text-xs tracking-wide shadow-lg shadow-rose-650/25 transition-all cursor-pointer transform active:scale-95 duration-200",
+        cancelButton: "px-6 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-900 text-slate-300 font-bold text-xs border border-slate-800 hover:border-slate-700 transition-all cursor-pointer transform active:scale-95 duration-200 mr-3"
+      }
+    });
+
+    if (!result.isConfirmed) return;
+
+    const token = localStorage.getItem("token");
+
+    try {
+      const res = await fetch(`/api/product/`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ id: productId })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.message || "Failed to delete product");
+      }
+
+      toast.success("Product deleted successfully");
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (err) {
+      toast.error("Error deleting product: " + err.message);
+      console.error(err);
+    }
+  };
+ 
   const { data: fetchedData, isLoading: fetchLoading, error: fetchError } =  useFetch('/api/product/', {
     method: 'GET',
     // headers:{'Authorization':`Bearer ${token}`}
@@ -63,7 +142,10 @@ const ProductCard =  ({limit, products}) => {
       ) : (
         data && (displaylist = limit ? data.products.slice(0,limit) : data.products,
         displaylist.map((product, index) => (
+          
           <div key={index}>
+      {console.log(limit)},
+
             <div
               key={product._id}
               className="group relative bg-slate-900/40 hover:bg-slate-900/80 border border-slate-800/80 hover:border-indigo-500/30 rounded-2xl p-4 sm:p-5 transition-all duration-[300ms] hover:shadow-2xl hover:shadow-indigo-500/5 flex flex-col justify-between h-full"
@@ -71,13 +153,33 @@ const ProductCard =  ({limit, products}) => {
               <div>
                 {/* Favourite Heart Button */}
                 <button
-                  onClick={(e) => {
+                  onClick={async (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    if (favourites.includes(product._id)) {
-                      setFavourites(favourites.filter(id => id !== product._id))
-                    } else {
-                      setFavourites([...favourites, product._id])
+                    if (!token) {
+                      toast.error("Please log in to save favourites");
+                      return;
+                    }
+                    const isFav = favourites.includes(product._id);
+                    try {
+                      const res = await fetch('/api/favourites', {
+                        method: isFav ? 'DELETE' : 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ productId: product._id })
+                      });
+                      if (!res.ok) throw new Error("Failed to update saved items");
+                      if (isFav) {
+                        setFavourites(favourites.filter(id => id !== product._id));
+                        toast.success("Removed from saved items");
+                      } else {
+                        setFavourites([...favourites, product._id]);
+                        toast.success("Saved to favourites", { icon: '❤️' });
+                      }
+                    } catch (err) {
+                      toast.error(err.message || "Could not update saved items");
                     }
                   }}
                   className={`absolute top-3 right-3 sm:top-4 sm:right-4 w-9 h-9 sm:w-8 sm:h-8 rounded-full flex items-center justify-center backdrop-blur-xl border z-10 transition-all duration-300 cursor-pointer active:scale-90 ${
@@ -87,7 +189,7 @@ const ProductCard =  ({limit, products}) => {
                   }`}
                   title={favourites.includes(product._id) ? 'Remove from Favourites' : 'Add to Favourites'}
                 >
-                  <Heart
+                  <Heart 
                     className={`h-4 w-4 transition-all duration-300 ${
                       favourites.includes(product._id)
                         ? 'text-rose-500 fill-rose-500 scale-110'
@@ -139,14 +241,27 @@ const ProductCard =  ({limit, products}) => {
                   <span className="text-base sm:text-lg font-extrabold text-white">${product.price}</span>
                 </div>
                 {isAdmin ? (
-                  <Link
-                    to={`/admin/add-product?editing=true&id=${product._id}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="flex items-center justify-center p-2 sm:p-2.5 rounded-xl border border-indigo-500/20 bg-indigo-650/10 hover:bg-indigo-650 text-indigo-400 hover:text-white transition-all duration-300 cursor-pointer shadow-md"
-                    title="Edit Product"
-                  >
-                    <SlidersHorizontal className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      to={`/admin/add-product?editing=true&id=${product._id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center justify-center p-2 sm:p-2.5 rounded-xl border border-indigo-500/20 bg-indigo-650/10 hover:bg-indigo-650 text-indigo-400 hover:text-white transition-all duration-300 cursor-pointer shadow-md"
+                      title="Edit Product"
+                    >
+                      <SlidersHorizontal className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
+                    </Link>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDelete(product._id);
+                      }}
+                      className="flex items-center justify-center p-2 sm:p-2.5 rounded-xl border border-rose-500/20 bg-rose-950/10 hover:bg-rose-600 text-rose-450 hover:text-white transition-all duration-300 cursor-pointer shadow-md"
+                      title="Delete Product"
+                    >
+                      <Trash2 className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
+                    </button>
+                  </div>
                 ) : (
                   <button
                     onClick={(e) => {

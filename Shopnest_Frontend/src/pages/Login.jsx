@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useAuth } from '../hooks/useAuth';
@@ -34,6 +34,9 @@ function Login() {
   });
 
   // Handle standard credentials login submit
+  useEffect(() => {
+      document.title = 'Login' 
+}, [])
   const onSubmitLogin = async (formData) => {
     setLoading(true);
     setError(null);
@@ -61,12 +64,18 @@ function Login() {
           login(data.User, data.User.token);
           navigate('/');
         } else {
+      setLoading(false);
+
            setError('Failed to login. Invalid user response structure.');
         }
       } else {
+      setLoading(false);
+
         setError(data.message || 'Invalid email or password.');
       }
     } catch {
+      setLoading(false);
+
       setError('Connection error. Please check your network.');
     } finally {
       setLoading(false);

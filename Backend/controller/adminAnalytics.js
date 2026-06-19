@@ -10,7 +10,7 @@ exports.adminAnalytics = async (req , res , next) => {
     const totalproducts = await productModel.countDocuments()
     const orders = await orderModel.find({})
     const totalRevenue = orders.reduce((acc, order) => acc + order.totalAmount , 0)
-    return res.json({totalRevenue,totalproducts,totalUsers,totalUsers})
+    return res.json({totalRevenue,totalproducts,totalUsers,totalorders})
 }
  catch (error) 
 {

@@ -8,7 +8,7 @@ const generateToken = (id) => {
 exports.verify_otp = async (req, res, next) => {
   try {
     const {email , otp} = req.body
-    const user = await userModel.findOne({email:email})
+    const user = await userModel.findOne({email:email}).select('-password')
     if(!user || user.otp!== otp || Date.now() > user.otpExpires){
       return res.json({
         message:"invalid user or otp or expired otp"
@@ -39,7 +39,7 @@ exports.postSignup = async (req, res, next) => {
         .status(400)
         .json({ message: "email id already in use with another user" });
     }
-    const hashPassword = await bcrypt.hash(password, 14);
+    const hashPassword = await bcrypt.hash(password, 10);
       // UserObj.token = generateToken(User._id);
       const otp = Math.floor(100000 + Math.random() * 900000);
       const otpExpires = new Date( Date.now() + 10*60*1000)
@@ -64,12 +64,18 @@ exports.postSignup = async (req, res, next) => {
     return res.status(400).json({ message: "error during user creation 001" });
   }
 }
-exports.getLogin = (req, res, next) => {};
+exports.getLogin = (req, res, next) => {
+  return res.status(405).json({ message: "login endpoint accepts POST requests only" });
+};
 exports.postLogin = async (req, res, next) => {
   try {
     const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ message: "email and password are required" });
+    }
+
     const User = await userModel.findOne({ email });
-    if (User && bcrypt.compareSync(password, User.password)) {
+    if (User && await bcrypt.compare(password, User.password)) {
       const UserObj = User.toObject()
       delete UserObj.password
       if(User.twoFA){
@@ -78,7 +84,7 @@ exports.postLogin = async (req, res, next) => {
         User.otp = otp
         User.otpExpires = otpExpires
         await User.save()
-        await sendMaiil(User.email, "Your 2FA Login Code", `Your OTP code is: ${otp}`)
+         sendMaiil(User.email, "Your 2FA Login Code", `Your OTP code is: ${otp}`)
         return res.json({ 
           twoFA: true, 
           message: "Please verify the OTP sent to your email",
@@ -88,6 +94,8 @@ exports.postLogin = async (req, res, next) => {
          UserObj.token = generateToken(User._id)
       return res.json({ User: UserObj });
     }
+
+    return res.status(401).json({ message: "invalid email or password" });
   } catch (error) {
     console.log("error during user login 002", error);
     return res.status(400).json({ message: "error during user login 002" });
@@ -121,4 +129,16 @@ exports.sendOtp = async (req , res , next) =>{
           message: " OTP sent to your email",
           email: User.email 
         })
+}
+exports.Toggle2FA = async (req ,res) =>{
+   try {
+     const {id , flag} = req.body
+    await userModel.findByIdAndUpdate(id ,{twoFA:flag})
+    res.json({message:'2FA updated successfully'})
+   } catch (error) {
+    const message = 'error in updating 2FA'
+    console.log(message,error)
+    res.status(400).json({message})
+   }
+
 }

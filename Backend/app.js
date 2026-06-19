@@ -6,7 +6,7 @@ const mongoose = require('mongoose')
 const authRouter = require('./routes/authRoute')
 const adminRouter = require('./routes/adminRoute')
 const ProductRouter = require('./routes/productRoute')
-const PaymentRouter = require('./routes//paymentRoute')
+const PaymentRouter = require('./routes/paymentRoute')
 const OrderRouter = require('./routes/orderRoute')
 const cartRouter = require('./routes/cartRoutes')
 const favouritesRouter = require('./routes/favouritesRoutes')
@@ -21,7 +21,7 @@ app.use("/api/product" ,ProductRouter )
 app.use("/api/order" ,OrderRouter )
 app.use("/api" , cartRouter)
 app.use("/api" , favouritesRouter)
-// app.use("/api/payment" ,PaymentRouter )
+app.use("/api/payment" ,PaymentRouter )
 
  const PORT = process.env.PORT 
  mongoose.connect(process.env.MONGO_URL).then(()=>{

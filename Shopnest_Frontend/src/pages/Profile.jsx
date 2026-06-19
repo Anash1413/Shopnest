@@ -1,5 +1,7 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { NavLink } from 'react-router-dom';
+
 import { useAuth } from '../hooks/useAuth'
 import {
   User,
@@ -19,10 +21,44 @@ import {
   ArrowRight,
   Settings,
 } from 'lucide-react'
+import toast from 'react-hot-toast';
 
 function Profile() {
-  const { user, isAdmin, isVerified } = useAuth()
+  const { user,  token, isAdmin, isVerified } = useAuth()
+  const [twoFAEnabled, setTwoFAEnabled] = useState(Boolean(user?.twoFA))
 
+  useEffect(() => {
+        document.title = 'Profile' 
+  }, [])
+
+  useEffect(() => {
+    setTwoFAEnabled(Boolean(user?.twoFA))
+  }, [user?.twoFA])
+  
+  const handle2FA = async (id , flag)=>{
+    const res = await fetch('api/auth/toggle-2FA',{
+      method :'POST',
+      headers:{
+        'Authorization' :`Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body:JSON.stringify({
+              id,flag
+      })
+    })
+    const msg = await res.json()
+    if(!res.ok){
+        return toast.error(msg.message ||"can't change 2FA !! something went wrong")
+         
+    }
+    toast.success('successfully changed 2FA')
+  }
+
+  const handle2FAToggle = () => {
+    const nextTwoFAState = !twoFAEnabled
+    setTwoFAEnabled(nextTwoFAState)
+    handle2FA(user?._id, nextTwoFAState)
+  }
   // Get initials for avatar
   const getInitials = (name) => {
     if (!name) return '?'
@@ -97,6 +133,7 @@ function Profile() {
                     <>
                       <XCircle className="h-[1.8vh] w-[3vw] md:w-[1vw]" />
                       <span>Email Not Verified</span>
+                      <NavLink className={"text-rose-700"} to={"/verify"}>Verify Now </NavLink>
                     </>
                   )}
                 </div>
@@ -181,20 +218,39 @@ function Profile() {
                 {/* Detail Row: 2FA */}
                 <div className="flex items-center justify-between px-[4vw] py-[2.5vh] md:px-[1.5vw] md:py-[1.8vh]">
                   <div className="flex items-center gap-[2vw] md:gap-[0.6vw]">
-                    {user?.twoFA ? (
+                    {twoFAEnabled ? (
                       <Lock className="h-[2vh] w-[3.5vw] md:w-[1vw] text-slate-500" />
                     ) : (
                       <Unlock className="h-[2vh] w-[3.5vw] md:w-[1vw] text-slate-500" />
                     )}
                     <span className="text-[3vw] md:text-[0.8vw] text-slate-500 font-semibold uppercase tracking-wider">Two-Factor Auth</span>
                   </div>
-                  <span className={`px-[2.5vw] py-[0.4vh] md:px-[0.8vw] md:py-[0.3vh] rounded-[50vw] text-[2.8vw] md:text-[0.75vw] font-bold border ${
-                    user?.twoFA
-                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                      : 'bg-slate-800/50 border-slate-700/30 text-slate-500'
-                  }`}>
-                    {user?.twoFA ? 'Enabled' : 'Disabled'}
-                  </span>
+                  <div className="flex items-center gap-[2vw] md:gap-[0.6vw]">
+                    <span className={`px-[2.5vw] py-[0.4vh] md:px-[0.8vw] md:py-[0.3vh] rounded-[50vw] text-[2.8vw] md:text-[0.75vw] font-bold border ${
+                      twoFAEnabled
+                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                        : 'bg-slate-800/50 border-slate-700/30 text-slate-500'
+                    }`}>
+                      {twoFAEnabled ? 'Enabled' : 'Disabled'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handle2FAToggle}
+                      aria-label="Toggle two-factor authentication"
+                      aria-pressed={twoFAEnabled}
+                      className={`relative h-[3vh] w-[12vw] md:h-[2.6vh] md:w-[2.8vw] rounded-[50vw] border transition-all duration-300 cursor-pointer ${
+                        twoFAEnabled
+                          ? 'bg-emerald-500/20 border-emerald-500/30'
+                          : 'bg-slate-800/60 border-slate-700/40'
+                      }`}
+                    >
+                      <span className={`absolute top-1/2 h-[2.1vh] w-[2.1vh] md:h-[1.8vh] md:w-[1.8vh] -translate-y-1/2 rounded-full bg-white shadow-lg transition-all duration-300 ${
+                        twoFAEnabled
+                          ? 'left-[calc(100%-2.4vh)] md:left-[calc(100%-2.1vh)]'
+                          : 'left-[0.35vh]'
+                      }`}></span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

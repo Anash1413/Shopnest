@@ -23,7 +23,13 @@ import {
   RotateCcw
 } from "lucide-react";
 
+
+
+
 function Cart() {
+  useEffect(() => {
+        document.title = 'Cart' 
+  }, [])
   // Alias isloading (all lowercase from cartSlice) to isLoading (camelCase)
   const { cartItems, isloading: isLoading, error } = useSelector((state) => state.cart);
   const dispatch = useDispatch();
@@ -34,6 +40,7 @@ function Cart() {
   const [checkoutStep, setCheckoutStep] = useState(1); // 1 = shipping details, 2 = payment, 3 = order completed
   const [isProcessingOrder, setIsProcessingOrder] = useState(false);
   const [generatedOrderId, setGeneratedOrderId] = useState("");
+  const [paymentMethodSelection, setPaymentMethodSelection] = useState("razorpay");
   
   // Form states
   const [shippingInfo, setShippingInfo] = useState({
@@ -41,14 +48,24 @@ function Cart() {
     email: "",
     address: "",
     city: "",
-    zipCode: ""
+    state: "",
+    zipCode: "",
+    phoneNumber: ""
   });
-  const [paymentInfo, setPaymentInfo] = useState({
-    cardName: "",
-    cardNumber: "",
-    expDate: "",
-    cvv: ""
-  });
+
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
 
   useEffect(() => {
     dispatch(fetchCart());
@@ -85,7 +102,7 @@ function Cart() {
   // Handle Checkout actions
   const handleShippingSubmit = (e) => {
     e.preventDefault();
-    if (!shippingInfo.fullName || !shippingInfo.email || !shippingInfo.address || !shippingInfo.city || !shippingInfo.zipCode) {
+    if (!shippingInfo.fullName || !shippingInfo.email || !shippingInfo.address || !shippingInfo.city || !shippingInfo.state || !shippingInfo.zipCode || !shippingInfo.phoneNumber) {
       toast.error("Please fill in all shipping details");
       return;
     }
@@ -94,36 +111,192 @@ function Cart() {
 
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
-    if (!paymentInfo.cardName || !paymentInfo.cardNumber || !paymentInfo.expDate || !paymentInfo.cvv) {
-      toast.error("Please fill in all payment details");
-      return;
-    }
-    
-    setIsProcessingOrder(true);
-    // Simulate API delay
-    setTimeout(async () => {
-      const mockOrderId = "SN-" + Math.floor(100000 + Math.random() * 900000) + "-" + Math.random().toString(36).substring(2, 5).toUpperCase();
-      setGeneratedOrderId(mockOrderId);
-      setIsProcessingOrder(false);
-      setCheckoutStep(3);
-      toast.success("Payment successful! Order placed.");
+    const token = localStorage.getItem("token");
 
-      // Clean up the user's backend cart by pulling ordered items in background
+    if (paymentMethodSelection === "razorpay") {
+      setIsProcessingOrder(true);
       try {
+        const loaded = await loadRazorpayScript();
+        if (!loaded) {
+          toast.error("Failed to load Razorpay SDK. Check your connection.");
+          setIsProcessingOrder(false);
+          return;
+        }
+
+        // 1. Fetch Razorpay key from backend
+        const keyRes = await fetch("/api/payment/key", {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        if (!keyRes.ok) throw new Error("Failed to load payment credentials");
+        const { key } = await keyRes.json();
+
+        // 2. Create Razorpay order in backend
+        const orderRes = await fetch("/api/payment/order", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({ amount: grandTotal })
+        });
+        if (!orderRes.ok) throw new Error("Failed to initialize payment gateway");
+        const rzpOrder = await orderRes.json();
+
+        // 3. Open Razorpay Checkout overlay
+        const options = {
+          key: key,
+          amount: rzpOrder.amount,
+          currency: rzpOrder.currency,
+          name: "ShopNest",
+          description: "Secure Checkout Payment",
+          order_id: rzpOrder.id,
+          prefill: {
+            name: shippingInfo.fullName,
+            email: shippingInfo.email,
+            contact: shippingInfo.phoneNumber
+          },
+          theme: {
+            color: "#6366f1"
+          },
+          handler: async (response) => {
+            try {
+              setIsProcessingOrder(true);
+              // 4. Verify payment signature on backend
+              const verifyRes = await fetch("/api/payment/verify", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature
+                })
+              });
+              const verifyData = await verifyRes.json();
+              if (!verifyRes.ok) throw new Error(verifyData.message || "Payment verification failed");
+
+              // 5. Create final order in MongoDB database
+              const itemsMapped = cartItems.map(item => ({
+                product: item._id,
+                quantity: 1
+              }));
+
+              const dbOrderRes = await fetch("/api/order", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                  items: itemsMapped,
+                  address: {
+                    fullName: shippingInfo.fullName,
+                    addressLine1: shippingInfo.address,
+                    addressLine2: "",
+                    city: shippingInfo.city,
+                    state: shippingInfo.state,
+                    zipCode: shippingInfo.zipCode,
+                    phoneNumber: shippingInfo.phoneNumber
+                  },
+                  totalAmount: grandTotal,
+                  paymentMethod: "online",
+                  status: "completed"
+                })
+              });
+
+              const dbOrderData = await dbOrderRes.json();
+              if (!dbOrderRes.ok) throw new Error(dbOrderData.message || "Failed to create order record");
+
+              setGeneratedOrderId(dbOrderData.order?._id || dbOrderData.order?.id || "SN-SUCCESS");
+              setCheckoutStep(3);
+              toast.success("Payment successful! Order placed.");
+
+              // Clear local and backend cart items
+              for (const item of cartItems) {
+                await dispatch(deleteToCart(item._id)).unwrap();
+              }
+            } catch (err) {
+              toast.error(err.message || "Order placement failed");
+              console.error(err);
+            } finally {
+              setIsProcessingOrder(false);
+            }
+          },
+          modal: {
+            ondismiss: () => {
+              setIsProcessingOrder(false);
+            }
+          }
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+
+      } catch (err) {
+        toast.error(err.message || "Payment initiation failed");
+        console.error(err);
+        setIsProcessingOrder(false);
+      }
+    } else {
+      // Cash on Delivery checkout
+      setIsProcessingOrder(true);
+      try {
+        const itemsMapped = cartItems.map(item => ({
+          product: item._id,
+          quantity: 1
+        }));
+
+        const dbOrderRes = await fetch("/api/order", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            items: itemsMapped,
+            address: {
+              fullName: shippingInfo.fullName,
+              addressLine1: shippingInfo.address,
+              addressLine2: "",
+              city: shippingInfo.city,
+              state: shippingInfo.state,
+              zipCode: shippingInfo.zipCode,
+              phoneNumber: shippingInfo.phoneNumber
+            },
+            totalAmount: grandTotal,
+            paymentMethod: "cashOnDelivery",
+            status: "pending"
+          })
+        });
+
+        const dbOrderData = await dbOrderRes.json();
+        if (!dbOrderRes.ok) throw new Error(dbOrderData.message || "Failed to create order record");
+
+        setGeneratedOrderId(dbOrderData.order?._id || dbOrderData.order?.id || "SN-SUCCESS");
+        setCheckoutStep(3);
+        toast.success("Order placed successfully! Cash on Delivery.");
+
+        // Clear local and backend cart items
         for (const item of cartItems) {
           await dispatch(deleteToCart(item._id)).unwrap();
         }
       } catch (err) {
-        console.error("Cart cleanup error: ", err);
+        toast.error(err.message || "Order placement failed");
+        console.error(err);
+      } finally {
+        setIsProcessingOrder(false);
       }
-    }, 1800);
+    }
   };
 
   const resetCheckoutState = () => {
     setShowCheckout(false);
     setCheckoutStep(1);
-    setShippingInfo({ fullName: "", email: "", address: "", city: "", zipCode: "" });
-    setPaymentInfo({ cardName: "", cardNumber: "", expDate: "", cvv: "" });
+    setShippingInfo({ fullName: "", email: "", address: "", city: "", state: "", zipCode: "", phoneNumber: "" });
   };
 
   if (error) {
@@ -318,7 +491,7 @@ function Cart() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-5">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                     <div className="flex flex-col gap-2">
                       <label className="text-xs font-bold uppercase text-slate-450 tracking-wider">City</label>
                       <input 
@@ -326,6 +499,17 @@ function Cart() {
                         placeholder="Mumbai"
                         value={shippingInfo.city}
                         onChange={(e) => setShippingInfo({...shippingInfo, city: e.target.value})}
+                        className="w-full bg-slate-950/60 border border-slate-850 hover:border-slate-800 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all outline-none p-3.5 text-sm placeholder-slate-600"
+                        required
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs font-bold uppercase text-slate-450 tracking-wider">State</label>
+                      <input 
+                        type="text" 
+                        placeholder="Maharashtra"
+                        value={shippingInfo.state}
+                        onChange={(e) => setShippingInfo({...shippingInfo, state: e.target.value})}
                         className="w-full bg-slate-950/60 border border-slate-850 hover:border-slate-800 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all outline-none p-3.5 text-sm placeholder-slate-600"
                         required
                       />
@@ -343,6 +527,18 @@ function Cart() {
                     </div>
                   </div>
 
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold uppercase text-slate-450 tracking-wider">Phone Number</label>
+                    <input 
+                      type="tel" 
+                      placeholder="+91 9876543210"
+                      value={shippingInfo.phoneNumber}
+                      onChange={(e) => setShippingInfo({...shippingInfo, phoneNumber: e.target.value})}
+                      className="w-full bg-slate-950/60 border border-slate-850 hover:border-slate-800 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all outline-none p-3.5 text-sm placeholder-slate-600"
+                      required
+                    />
+                  </div>
+
                   <button 
                     type="submit" 
                     className="w-full py-4 mt-4 rounded-xl bg-linear-to-r from-violet-600 to-indigo-650 hover:from-violet-500 hover:to-indigo-550 text-white font-bold text-sm tracking-wide shadow-lg shadow-indigo-600/20 hover:shadow-indigo-650/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
@@ -356,79 +552,72 @@ function Cart() {
                 <form onSubmit={handlePaymentSubmit} className="space-y-6">
                   <h2 className="text-xl font-bold text-white tracking-tight uppercase border-b border-slate-850 pb-3 flex items-center gap-2">
                     <CreditCard className="h-5 w-5 text-indigo-400" />
-                    <span>Secure Checkout</span>
+                    <span>Select Payment Method</span>
                   </h2>
 
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold uppercase text-slate-450 tracking-wider">Name on Card</label>
-                    <div className="relative flex items-center">
-                      <User className="absolute left-3.5 h-4 w-4 text-slate-555" />
-                      <input 
-                        type="text" 
-                        placeholder="Anash Khan"
-                        value={paymentInfo.cardName}
-                        onChange={(e) => setPaymentInfo({...paymentInfo, cardName: e.target.value})}
-                        className="w-full bg-slate-950/60 border border-slate-855 hover:border-slate-800 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all outline-none p-3.5 pl-11 text-sm placeholder-slate-600"
-                        required
-                      />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div 
+                      onClick={() => setPaymentMethodSelection("razorpay")}
+                      className={`p-5 rounded-2xl border backdrop-blur-md cursor-pointer transition-all flex flex-col justify-between gap-4 ${
+                        paymentMethodSelection === "razorpay" 
+                          ? "bg-indigo-600/10 border-indigo-500/60 text-white shadow-lg shadow-indigo-600/5" 
+                          : "bg-slate-950/40 border-slate-850 text-slate-400 hover:text-slate-200 hover:border-slate-800"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold tracking-wide uppercase text-sm">Razorpay Online</span>
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                          paymentMethodSelection === "razorpay" ? "border-indigo-400" : "border-slate-600"
+                        }`}>
+                          {paymentMethodSelection === "razorpay" && <div className="w-2.5 h-2.5 rounded-full bg-indigo-400"></div>}
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        Pay securely using Credit/Debit Cards, UPI, Net Banking, or popular Mobile Wallets.
+                      </p>
                     </div>
-                  </div>
 
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs font-bold uppercase text-slate-450 tracking-wider">Card Number</label>
-                    <div className="relative flex items-center">
-                      <Lock className="absolute left-3.5 h-4 w-4 text-slate-555" />
-                      <input 
-                        type="text" 
-                        placeholder="•••• •••• •••• ••••"
-                        value={paymentInfo.cardNumber}
-                        onChange={(e) => setPaymentInfo({...paymentInfo, cardNumber: e.target.value})}
-                        className="w-full bg-slate-950/60 border border-slate-855 hover:border-slate-800 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all outline-none p-3.5 pl-11 text-sm placeholder-slate-600"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-5">
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold uppercase text-slate-450 tracking-wider">Expiration Date</label>
-                      <input 
-                        type="text" 
-                        placeholder="MM/YY"
-                        value={paymentInfo.expDate}
-                        onChange={(e) => setPaymentInfo({...paymentInfo, expDate: e.target.value})}
-                        className="w-full bg-slate-950/60 border border-slate-855 hover:border-slate-800 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all outline-none p-3.5 text-sm placeholder-slate-600"
-                        required
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-bold uppercase text-slate-450 tracking-wider">CVV Security Code</label>
-                      <input 
-                        type="password" 
-                        placeholder="•••"
-                        maxLength="3"
-                        value={paymentInfo.cvv}
-                        onChange={(e) => setPaymentInfo({...paymentInfo, cvv: e.target.value})}
-                        className="w-full bg-slate-950/60 border border-slate-855 hover:border-slate-800 text-white rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-all outline-none p-3.5 text-sm placeholder-slate-600"
-                        required
-                      />
+                    <div 
+                      onClick={() => setPaymentMethodSelection("cashOnDelivery")}
+                      className={`p-5 rounded-2xl border backdrop-blur-md cursor-pointer transition-all flex flex-col justify-between gap-4 ${
+                        paymentMethodSelection === "cashOnDelivery" 
+                          ? "bg-indigo-600/10 border-indigo-500/60 text-white shadow-lg shadow-indigo-600/5" 
+                          : "bg-slate-950/40 border-slate-850 text-slate-400 hover:text-slate-200 hover:border-slate-800"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-extrabold tracking-wide uppercase text-sm">Cash on Delivery</span>
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                          paymentMethodSelection === "cashOnDelivery" ? "border-indigo-400" : "border-slate-600"
+                        }`}>
+                          {paymentMethodSelection === "cashOnDelivery" && <div className="w-2.5 h-2.5 rounded-full bg-indigo-400"></div>}
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        Pay with cash upon delivery of your cosmic essentials. Estimated delivery 3-5 days.
+                      </p>
                     </div>
                   </div>
 
                   <button 
                     type="submit" 
                     disabled={isProcessingOrder}
-                    className={`w-full py-4 mt-4 rounded-xl bg-linear-to-r from-emerald-600 to-teal-650 hover:from-emerald-500 hover:to-teal-550 disabled:from-slate-800 disabled:to-slate-850 disabled:text-slate-500 text-white font-bold text-sm tracking-wide shadow-lg shadow-emerald-600/10 hover:shadow-emerald-650/30 transition-all flex items-center justify-center gap-2 cursor-pointer`}
+                    className="w-full py-4 mt-6 rounded-xl bg-linear-to-r from-violet-600 to-indigo-650 hover:from-violet-500 hover:to-indigo-550 disabled:from-slate-800 disabled:to-slate-850 disabled:text-slate-500 text-white font-bold text-sm tracking-wide shadow-lg shadow-indigo-600/10 hover:shadow-indigo-650/30 transition-all flex items-center justify-center gap-2 cursor-pointer transform active:scale-[0.98]"
                   >
                     {isProcessingOrder ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin text-white" />
-                        <span>Validating Transaction...</span>
+                        <span>Processing Order...</span>
+                      </>
+                    ) : paymentMethodSelection === "razorpay" ? (
+                      <>
+                        <ShieldCheck className="h-4 w-4" />
+                        <span>Pay via Razorpay (${grandTotal.toFixed(2)})</span>
                       </>
                     ) : (
                       <>
-                        <ShieldCheck className="h-4 w-4" />
-                        <span>Pay & Complete Order (${grandTotal.toFixed(2)})</span>
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span>Place Cash on Delivery Order (${grandTotal.toFixed(2)})</span>
                       </>
                     )}
                   </button>
@@ -617,4 +806,4 @@ function Cart() {
   );
 }
 
-export default Cart;
+export default Cart;

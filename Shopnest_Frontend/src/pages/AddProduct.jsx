@@ -1,487 +1,581 @@
-import React, { useState, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
-import { useForm } from "react-hook-form";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import Swal from "sweetalert2";
-import { 
-  Package, 
-  Upload, 
-  Image as ImageIcon, 
-  ArrowLeft, 
-  Loader2, 
-  CheckCircle2, 
-  Sparkles, 
-  DollarSign, 
-  Layers, 
-  Tag, 
-  Database,
+import {
+  ArrowLeft,
+  BadgeDollarSign,
+  Boxes,
+  Camera,
+  Check,
+  ImagePlus,
+  Loader2,
+  PackagePlus,
+  PencilLine,
+  Save,
+  Sparkles,
+  Tag,
   Trash2,
-  AlertTriangle
+  UploadCloud,
+  X,
 } from "lucide-react";
+
+const initialProduct = {
+  name: "",
+  price: "",
+  description: "",
+  category: "",
+  brand: "",
+  stock: "",
+  rating: "4.5",
+  numReviews: "0",
+};
+
+const categories = ["Audio", "Electronics", "Wearables", "Accessories", "Home"];
+
+const fieldShell =
+  "w-full rounded-lg border border-slate-800 bg-slate-950/80 px-3.5 py-3 text-sm text-white outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/15";
+
+const labelShell = "text-xs font-bold uppercase tracking-wide text-slate-400";
 
 function AddProduct() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  
+  const fileInputRef = useRef(null);
+  const objectUrlRef = useRef("");
+
   const isEditing = searchParams.get("editing") === "true";
   const productId = searchParams.get("id");
 
-  // React Hook Form initialization
-  const { 
-    register, 
-    handleSubmit, 
-    reset, 
-    formState: { errors } 
-  } = useForm({
-    mode: "onTouched",
-    defaultValues: {
-      rating: "4.5",
-      numReviews: "0"
-    }
-  });
-
-  // Image states (kept separate as they deal with File uploads & previews)
+  const [form, setForm] = useState(initialProduct);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
-  const [currentImageUrl, setCurrentImageUrl] = useState("");
+  const [existingImageUrl, setExistingImageUrl] = useState("");
+  const [loadingProduct, setLoadingProduct] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-  // Loading states
-  const [isFetchingData, setIsFetchingData] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const title = isEditing ? "Edit Product" : "Add Product";
+  const submitLabel = isEditing ? "Save Changes" : "Create Product";
 
-  // Fetch product data if in edit mode
+  const completion = useMemo(() => {
+    const requiredFields = ["name", "price", "description", "category", "brand", "stock"];
+    const completedFields = requiredFields.filter((field) => String(form[field]).trim()).length;
+    const imageReady = isEditing ? Boolean(existingImageUrl || imageFile) : Boolean(imageFile);
+    return Math.round(((completedFields + (imageReady ? 1 : 0)) / (requiredFields.length + 1)) * 100);
+  }, [existingImageUrl, form, imageFile, isEditing]);
+
   useEffect(() => {
-    if (isEditing && productId) {
-      const fetchProductDetails = async () => {
-        setIsFetchingData(true);
-        try {
-          const res = await fetch(`/api/product/detail/${productId}`);
-          if (!res.ok) throw new Error("Failed to fetch product details");
-          const data = await res.json();
-          
-          if (data && data.product) {
-            const prod = data.product;
-            reset({
-              name: prod.name || "",
-              price: prod.price || "",
-              description: prod.description || "",
-              category: prod.category || "",
-              brand: prod.brand || "",
-              stock: prod.stock || "",
-              rating: prod.rating || "4.5",
-              numReviews: prod.numReviews || "0"
-            });
-            setCurrentImageUrl(prod.image_url || "");
-            setImagePreview(prod.image_url || "");
-          }
-        } catch (err) {
-          toast.error("Error loading product: " + err.message);
-          console.error(err);
-        } finally {
-          setIsFetchingData(false);
-        }
-      };
-      fetchProductDetails();
-    }
-  }, [isEditing, productId, reset]);
-
-  // Handle image file selection
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  // Form submission handler
-  const onSubmit = async (data) => {
-    if (!isEditing && !imageFile) {
-      toast.error("Please upload a product image");
+    if (!isEditing || !productId) {
       return;
     }
 
-    setIsSubmitting(true);
-    const token = localStorage.getItem("token");
-    const formData = new FormData();
-    
-    // Append product fields from react-hook-form data
-    formData.append("name", data.name);
-    formData.append("price", data.price);
-    formData.append("description", data.description);
-    formData.append("category", data.category);
-    formData.append("brand", data.brand);
-    formData.append("stock", data.stock);
-    formData.append("rating", data.rating);
-    formData.append("numReviews", data.numReviews);
+    const loadProduct = async () => {
+      setLoadingProduct(true);
+      try {
+        const res = await fetch(`/api/product/detail/${productId}`);
+        const data = await res.json();
 
-    if (imageFile) {
-      formData.append("image_url", imageFile); // Multipart upload name expected by backend multer
-    }
+        if (!res.ok) {
+          throw new Error(data.message || "Failed to load product");
+        }
 
-    if (isEditing) {
-      formData.append("id", productId); // Backend expects req.body.id in updateProductById
-    }
-
-    try {
-      const url = "/api/product/";
-      const method = isEditing ? "PUT" : "POST";
-
-      const res = await fetch(url, {
-        method: method,
-        headers: {
-          "Authorization": `Bearer ${token}`
-        },
-        body: formData
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || `Server responded with status ${res.status}`);
+        const product = data.product;
+        if (objectUrlRef.current) {
+          URL.revokeObjectURL(objectUrlRef.current);
+          objectUrlRef.current = "";
+        }
+        setForm({
+          name: product.name || "",
+          price: product.price ?? "",
+          description: product.description || "",
+          category: product.category || "",
+          brand: product.brand || "",
+          stock: product.stock ?? "",
+          rating: product.rating ?? "4.5",
+          numReviews: product.numReviews ?? "0",
+        });
+        setExistingImageUrl(product.image_url || "");
+        setImagePreview(product.image_url || "");
+        setImageFile(null);
+      } catch (error) {
+        toast.error(error.message);
+      } finally {
+        setLoadingProduct(false);
       }
+    };
 
-      toast.success(isEditing ? "Product updated successfully!" : "Product created successfully!");
-      setTimeout(() => {
-        navigate("/products");
-      }, 1000);
+    loadProduct();
+  }, [isEditing, productId]);
 
-    } catch (err) {
-      toast.error(err.message || "Failed to process product command");
-      console.error(err);
-    } finally {
-      setIsSubmitting(false);
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+      }
+    };
+  }, []);
+
+  const updateField = (event) => {
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleImageChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file");
+      event.target.value = "";
+      return;
+    }
+
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+    }
+
+    objectUrlRef.current = URL.createObjectURL(file);
+    setImageFile(file);
+    setImagePreview(objectUrlRef.current);
+  };
+
+  const clearSelectedImage = () => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = "";
+    }
+    setImageFile(null);
+    setImagePreview(existingImageUrl || "");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
+  const validateForm = () => {
+    if (!form.name.trim()) return "Product name is required";
+    if (!form.brand.trim()) return "Brand name is required";
+    if (!form.category) return "Category is required";
+    if (!form.description.trim() || form.description.trim().length < 10) {
+      return "Description must be at least 10 characters";
+    }
+    if (!form.price || Number(form.price) <= 0) return "Price must be greater than 0";
+    if (form.stock === "" || Number(form.stock) < 0) return "Stock cannot be negative";
+    if (!isEditing && !imageFile) return "Please choose a product image";
+    return "";
+  };
+
+  const buildProductFormData = () => {
+    const payload = new FormData();
+    payload.append("name", form.name.trim());
+    payload.append("price", String(Number(form.price)));
+    payload.append("description", form.description.trim());
+    payload.append("category", form.category);
+    payload.append("brand", form.brand.trim());
+    payload.append("stock", String(Number(form.stock)));
+    payload.append("rating", String(Number(form.rating || 0)));
+    payload.append("numReviews", String(Number(form.numReviews || 0)));
+
+    if (imageFile) {
+      payload.append("image_url", imageFile);
+    }
+
+    if (isEditing) {
+      payload.append("id", productId);
+    }
+
+    return payload;
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    const validationMessage = validateForm();
+    if (validationMessage) {
+      toast.error(validationMessage);
+      return;
+    }
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      toast.error("Please login again before saving");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch("/api/product/", {
+        method: isEditing ? "PUT" : "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: buildProductFormData(),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || data.message || "Failed to save product");
+      }
+
+      toast.success(isEditing ? "Product updated" : "Product created");
+      navigate("/products");
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+  
+  
   const handleDelete = async () => {
+    if (!isEditing || !productId) return;
+
     const result = await Swal.fire({
-      title: "Delete Product Profile?",
-      text: "This operation will permanently erase this product record from the ShopNest catalog.",
+      title: "Delete this product?",
+      text: "This product will be permanently removed from the catalog.",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonText: "Confirm Delete",
+      confirmButtonText: "Delete Product",
       cancelButtonText: "Cancel",
       reverseButtons: true,
-      buttonsStyling: false,
-      background: "#0c0f1e",
+      background: "#0f172a",
       color: "#e2e8f0",
+      buttonsStyling: false,
       customClass: {
-        popup: "border border-slate-800/80 rounded-2xl shadow-2xl backdrop-blur-xl bg-slate-900/90 p-6 font-sans text-center",
-        title: "text-lg font-extrabold text-white tracking-tight uppercase mb-2",
-        htmlContainer: "text-slate-400 text-xs font-semibold leading-relaxed mb-6",
-        confirmButton: "px-6 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs tracking-wide shadow-lg shadow-rose-600/20 transition-all cursor-pointer transform active:scale-95 duration-200",
-        cancelButton: "px-6 py-2.5 rounded-xl bg-slate-950 hover:bg-slate-900 text-slate-300 font-bold text-xs border border-slate-800 hover:border-slate-700 transition-all cursor-pointer transform active:scale-95 duration-200 mr-3"
-      }
+        popup: "rounded-lg border border-slate-800 p-6",
+        confirmButton:
+          "ml-3 rounded-lg bg-rose-600 px-4 py-2 text-sm font-bold text-white hover:bg-rose-500",
+        cancelButton:
+          "rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-bold text-slate-200 hover:bg-slate-800",
+      },
     });
 
     if (!result.isConfirmed) return;
 
-    setIsDeleting(true);
     const token = localStorage.getItem("token");
+    if (!token) {
+      toast.error("Please login again before deleting");
+      return;
+    }
 
+    setDeleting(true);
     try {
-      const res = await fetch(`/api/product/`, {
+      const res = await fetch("/api/product/", {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ id: productId })
+        body: JSON.stringify({ id: productId }),
       });
 
+      const data = await res.json();
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.message || "Failed to delete product");
+        throw new Error(data.message || "Failed to delete product");
       }
 
-      toast.success("Product deleted successfully");
-      setTimeout(() => {
-        navigate("/products");
-      }, 1000);
-    } catch (err) {
-      toast.error("Error deleting product: " + err.message);
-      console.error(err);
+      toast.success("Product deleted");
+      navigate("/products");
+    } catch (error) {
+      toast.error(error.message);
     } finally {
-      setIsDeleting(false);
+      setDeleting(false);
     }
   };
 
+  if (loadingProduct) {
+    return (
+      <main className="min-h-screen bg-slate-950 px-4 py-16 text-white">
+        <div className="mx-auto flex max-w-5xl flex-col items-center justify-center gap-4 py-24">
+          <Loader2 className="h-10 w-10 animate-spin text-cyan-400" />
+          <p className="text-sm font-semibold text-slate-400">Loading product details</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#070913] text-[#e2e8f0] flex flex-col font-sans overflow-x-hidden relative">
-      {/* Background glowing effects */}
-      <div className="absolute top-[-10vh] left-[5vw] w-[45vw] h-[45vw] rounded-full bg-violet-600/5 blur-[12vw] pointer-events-none"></div>
-      <div className="absolute bottom-[10vh] right-[5vw] w-[45vw] h-[45vw] rounded-full bg-cyan-600/4 blur-[12vw] pointer-events-none"></div>
+    <main className="min-h-screen bg-slate-950 text-white">
+      <div className="border-b border-slate-900 bg-slate-950">
+        <div className="mx-auto flex max-w-6xl flex-col gap-5 px-4 py-8 sm:px-6 lg:px-8">
+          <Link
+            to="/products"
+            className="inline-flex w-fit items-center gap-2 rounded-lg border border-slate-800 px-3 py-2 text-sm font-semibold text-slate-300 transition hover:border-slate-700 hover:text-white"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Products
+          </Link>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16 w-full z-10 relative flex-1 flex flex-col justify-center">
-        
-        {/* Back navigation button */}
-        <button 
-          onClick={() => navigate(-1)}
-          className="self-start flex items-center gap-1.5 text-xs text-slate-450 hover:text-slate-200 mb-6 transition-colors font-semibold uppercase tracking-wider bg-slate-900/30 px-3.5 py-2 rounded-xl border border-slate-800/40 cursor-pointer"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Go Back</span>
-        </button>
-
-        {isFetchingData ? (
-          <div className="flex-1 flex flex-col items-center justify-center py-20 text-center">
-            <Loader2 className="h-12 w-12 text-indigo-500 animate-spin mb-4" />
-            <p className="text-slate-400 font-medium tracking-wide">Retrieving product record from databank...</p>
-          </div>
-        ) : (
-          <div className="bg-slate-900/35 border border-slate-800/80 rounded-3xl p-6 md:p-8 backdrop-blur-2xl shadow-3xl">
-            {/* Header Area */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-850/60 pb-5 mb-8 gap-4">
-              <div className="flex flex-col items-start gap-1">
-                <span className="px-2.5 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1">
-                  <Sparkles className="h-3 w-3" />
-                  <span>Admin Terminal</span>
-                </span>
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight uppercase flex items-center gap-2.5">
-                  <Package className="h-7 w-7 text-indigo-400" />
-                  <span>{isEditing ? "Modify Product Profile" : "Register Product"}</span>
-                </h1>
+          <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+            <div>
+              <div className="mb-3 inline-flex items-center gap-2 rounded-md border border-cyan-400/20 bg-cyan-400/10 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-cyan-300">
+                <Sparkles className="h-3.5 w-3.5" />
+                Admin Catalog
               </div>
-              <span className="text-xs text-slate-500 font-mono">
-                {isEditing ? `ID: ${productId}` : "STATUS: NEW RECORD"}
-              </span>
+              <h1 className="text-3xl font-black tracking-normal text-white sm:text-4xl">
+                {title}
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+                Build a complete catalog record with clean product data, image upload, and inventory details.
+              </p>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                
-                {/* Left side: Upload area & Preview image */}
-                <div className="lg:col-span-5 flex flex-col gap-4">
-                  <span className="text-xs font-bold uppercase text-slate-450 tracking-wider">Product Visual</span>
-                  
-                  <div className="relative group aspect-square w-full rounded-2xl bg-slate-950/60 border-2 border-dashed border-slate-850 hover:border-indigo-500/40 overflow-hidden flex flex-col items-center justify-center transition-all">
-                    {imagePreview ? (
-                      <>
-                        <img 
-                          src={imagePreview} 
-                          alt="Preview" 
-                          className="object-cover w-full h-full"
-                        />
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity gap-2">
-                          <Upload className="h-8 w-8 text-white" />
-                          <span className="text-xs font-bold text-white uppercase tracking-wider">Change Artwork</span>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="p-6 text-center flex flex-col items-center gap-2 text-slate-500">
-                        <ImageIcon className="h-12 w-12 text-slate-700 animate-pulse" />
-                        <span className="text-sm font-semibold">Select digital asset</span>
-                        <span className="text-[10px] text-slate-600">Supports PNG, JPG, WEBP</span>
-                      </div>
-                    )}
-                    
-                    <input 
-                      type="file" 
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    />
-                  </div>
-                  
-                  {isEditing && currentImageUrl && !imageFile && (
-                    <p className="text-[10px] text-slate-555 text-center font-mono">
-                      Rendering live copy from Cloudinary database.
-                    </p>
-                  )}
-                </div>
-
-                {/* Right side: Input text details */}
-                <div className="lg:col-span-7 space-y-5 text-left">
-                  
-                  {/* Name field */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold uppercase text-slate-450 tracking-wider">Product Name *</label>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. Space Capsule Speaker v2"
-                      className={`w-full bg-slate-950/60 border ${errors.name ? "border-rose-500/70 focus:border-rose-500" : "border-slate-850 hover:border-slate-800 focus:border-indigo-500"} text-white rounded-xl focus:ring-1 focus:ring-indigo-500/30 transition-all outline-none p-3.5 text-sm placeholder-slate-650`}
-                      {...register("name", { required: "Product Name is required" })}
-                    />
-                    {errors.name && (
-                      <span className="text-rose-400 text-[10px] font-bold tracking-wide flex items-center gap-1 mt-0.5">
-                        <AlertTriangle className="h-3 w-3 shrink-0" />
-                        <span>{errors.name.message}</span>
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* Price field */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold uppercase text-slate-450 tracking-wider flex items-center gap-1">
-                        <DollarSign className="h-3 w-3 text-slate-500" />
-                        <span>Price ($) *</span>
-                      </label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        placeholder="149.00"
-                        className={`w-full bg-slate-950/60 border ${errors.price ? "border-rose-500/70 focus:border-rose-500" : "border-slate-850 hover:border-slate-800 focus:border-indigo-500"} text-white rounded-xl focus:ring-1 focus:ring-indigo-500/30 transition-all outline-none p-3.5 text-sm placeholder-slate-650`}
-                        {...register("price", { 
-                          required: "Price is required",
-                          min: { value: 0.01, message: "Price must be greater than 0" }
-                        })}
-                      />
-                      {errors.price && (
-                        <span className="text-rose-400 text-[10px] font-bold tracking-wide flex items-center gap-1 mt-0.5">
-                          <AlertTriangle className="h-3 w-3 shrink-0" />
-                          <span>{errors.price.message}</span>
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Stock field */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold uppercase text-slate-450 tracking-wider flex items-center gap-1">
-                        <Database className="h-3 w-3 text-slate-500" />
-                        <span>Stock Unit *</span>
-                      </label>
-                      <input 
-                        type="number" 
-                        placeholder="25"
-                        className={`w-full bg-slate-950/60 border ${errors.stock ? "border-rose-500/70 focus:border-rose-500" : "border-slate-850 hover:border-slate-800 focus:border-indigo-500"} text-white rounded-xl focus:ring-1 focus:ring-indigo-500/30 transition-all outline-none p-3.5 text-sm placeholder-slate-650`}
-                        {...register("stock", { 
-                          required: "Stock is required",
-                          min: { value: 0, message: "Stock cannot be negative" }
-                        })}
-                      />
-                      {errors.stock && (
-                        <span className="text-rose-400 text-[10px] font-bold tracking-wide flex items-center gap-1 mt-0.5">
-                          <AlertTriangle className="h-3 w-3 shrink-0" />
-                          <span>{errors.stock.message}</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* Brand field */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold uppercase text-slate-450 tracking-wider flex items-center gap-1">
-                        <Tag className="h-3 w-3 text-slate-500" />
-                        <span>Brand Name *</span>
-                      </label>
-                      <input 
-                        type="text" 
-                        placeholder="e.g. ShopNest Tech"
-                        className={`w-full bg-slate-950/60 border ${errors.brand ? "border-rose-500/70 focus:border-rose-500" : "border-slate-850 hover:border-slate-800 focus:border-indigo-500"} text-white rounded-xl focus:ring-1 focus:ring-indigo-500/30 transition-all outline-none p-3.5 text-sm placeholder-slate-650`}
-                        {...register("brand", { required: "Brand name is required" })}
-                      />
-                      {errors.brand && (
-                        <span className="text-rose-400 text-[10px] font-bold tracking-wide flex items-center gap-1 mt-0.5">
-                          <AlertTriangle className="h-3 w-3 shrink-0" />
-                          <span>{errors.brand.message}</span>
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Category field */}
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-bold uppercase text-slate-450 tracking-wider flex items-center gap-1">
-                        <Layers className="h-3 w-3 text-slate-500" />
-                        <span>Category *</span>
-                      </label>
-                      <select 
-                        className={`w-full bg-slate-950/60 border ${errors.category ? "border-rose-500/70 focus:border-rose-500" : "border-slate-850 hover:border-slate-800 focus:border-indigo-500"} text-white rounded-xl focus:ring-1 focus:ring-indigo-500/30 transition-all outline-none p-3.5 text-sm cursor-pointer`}
-                        {...register("category", { required: "Category is required" })}
-                      >
-                        <option value="" disabled className="bg-slate-950 text-slate-500">Select Category</option>
-                        <option value="Audio" className="bg-slate-950 text-white">Audio</option>
-                        <option value="Electronics" className="bg-slate-950 text-white">Electronics</option>
-                        <option value="Wearables" className="bg-slate-950 text-white">Wearables</option>
-                        <option value="Accessories" className="bg-slate-950 text-white">Accessories</option>
-                        <option value="Home" className="bg-slate-950 text-white">Home</option>
-                      </select>
-                      {errors.category && (
-                        <span className="text-rose-400 text-[10px] font-bold tracking-wide flex items-center gap-1 mt-0.5">
-                          <AlertTriangle className="h-3 w-3 shrink-0" />
-                          <span>{errors.category.message}</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Description field */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold uppercase text-slate-450 tracking-wider">Product Description *</label>
-                    <textarea 
-                      placeholder="Explain features, specs, design values, materials..."
-                      rows="4"
-                      className={`w-full bg-slate-950/60 border ${errors.description ? "border-rose-500/70 focus:border-rose-500" : "border-slate-850 hover:border-slate-800 focus:border-indigo-500"} text-white rounded-xl focus:ring-1 focus:ring-indigo-500/30 transition-all outline-none p-3.5 text-sm placeholder-slate-650 resize-none`}
-                      {...register("description", { 
-                        required: "Description is required",
-                        minLength: { value: 10, message: "Description must be at least 10 characters long" }
-                      })}
-                    ></textarea>
-                    {errors.description && (
-                      <span className="text-rose-400 text-[10px] font-bold tracking-wide flex items-center gap-1 mt-0.5">
-                        <AlertTriangle className="h-3 w-3 shrink-0" />
-                        <span>{errors.description.message}</span>
-                      </span>
-                    )}
-                  </div>
-                </div>
-
+            <div className="w-full max-w-xs">
+              <div className="mb-2 flex items-center justify-between text-xs font-bold uppercase tracking-wide text-slate-400">
+                <span>Ready</span>
+                <span>{completion}%</span>
               </div>
-
-              {/* Submit and Delete buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 mt-6">
-                <button 
-                  type="submit" 
-                  disabled={isSubmitting || isDeleting}
-                  className="flex-1 py-4 rounded-xl bg-linear-to-r from-violet-600 to-indigo-650 hover:from-violet-500 hover:to-indigo-550 disabled:from-slate-855 disabled:to-slate-900 disabled:text-slate-500 text-white font-bold text-sm tracking-wide shadow-lg shadow-indigo-600/25 hover:shadow-indigo-650/40 transition-all flex items-center justify-center gap-2 cursor-pointer transform active:scale-[0.98]"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4.5 w-4.5 animate-spin" />
-                      <span>Saving Product Log...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle2 className="h-4.5 w-4.5" />
-                      <span>{isEditing ? "Update Product Log" : "Confirm Product Log"}</span>
-                    </>
-                  )}
-                </button>
-
-                {isEditing && (
-                  <button 
-                    type="button"
-                    onClick={handleDelete}
-                    disabled={isSubmitting || isDeleting}
-                    className="py-4 px-6 rounded-xl bg-rose-950/20 border border-rose-900/40 hover:bg-rose-900/20 hover:border-rose-500/30 disabled:border-slate-855 disabled:bg-slate-950 disabled:text-slate-550 text-rose-400 font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer transform active:scale-[0.98]"
-                  >
-                    {isDeleting ? (
-                      <>
-                        <Loader2 className="h-4.5 w-4.5 animate-spin" />
-                        <span>Deleting...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Trash2 className="h-4.5 w-4.5" />
-                        <span>Delete Product</span>
-                      </>
-                    )}
-                  </button>
-                )}
+              <div className="h-2 rounded-full bg-slate-900">
+                <div
+                  className="h-2 rounded-full bg-cyan-400 transition-all"
+                  style={{ width: `${completion}%` }}
+                />
               </div>
-
-            </form>
+            </div>
           </div>
-        )}
-
+        </div>
       </div>
-    </div>
+
+      <form onSubmit={handleSubmit} enctype="multipart/form-data" className="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[360px_1fr] lg:px-8">
+        <section className="space-y-4">
+          <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <span className={labelShell}>Product Image</span>
+              {imageFile && (
+                <button
+                  type="button"
+                  onClick={clearSelectedImage}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-800 text-slate-300 transition hover:border-slate-700 hover:text-white"
+                  aria-label="Clear selected image"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="group relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-700 bg-slate-950 text-left transition hover:border-cyan-400"
+            >
+              {imagePreview ? (
+                <>
+                  <img src={imagePreview} alt="Product preview" className="h-full w-full object-cover" />
+                  <span className="absolute inset-0 flex items-center justify-center bg-slate-950/70 opacity-0 transition group-hover:opacity-100">
+                    <span className="inline-flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-bold text-slate-950">
+                      <Camera className="h-4 w-4" />
+                      Change Image
+                    </span>
+                  </span>
+                </>
+              ) : (
+                <span className="flex flex-col items-center gap-3 text-center">
+                  <span className="flex h-14 w-14 items-center justify-center rounded-lg bg-slate-900 text-cyan-300">
+                    <ImagePlus className="h-7 w-7" />
+                  </span>
+                  <span>
+                    <span className="block text-sm font-bold text-white">Upload product image</span>
+                    <span className="mt-1 block text-xs text-slate-500">JPG, PNG, or WEBP</span>
+                  </span>
+                </span>
+              )}
+            </button>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="hidden"
+            />
+
+            <div className="mt-4 flex items-center gap-2 text-xs font-semibold text-slate-400">
+              <UploadCloud className="h-4 w-4 text-cyan-300" />
+              <span>{imageFile ? imageFile.name : isEditing ? "Current image will stay unless replaced" : "Required for new products"}</span>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
+            <span className={labelShell}>Checklist</span>
+            <div className="mt-3 space-y-2 text-sm text-slate-300">
+              {[
+                ["Name", form.name],
+                ["Pricing", form.price],
+                ["Category", form.category],
+                ["Inventory", form.stock !== ""],
+                ["Image", isEditing ? existingImageUrl || imageFile : imageFile],
+              ].map(([label, done]) => (
+                <div key={label} className="flex items-center gap-2">
+                  <span className={`flex h-5 w-5 items-center justify-center rounded-full ${done ? "bg-emerald-400 text-slate-950" : "bg-slate-800 text-slate-500"}`}>
+                    <Check className="h-3 w-3" />
+                  </span>
+                  <span>{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-6">
+          <div className="grid gap-5 rounded-lg border border-slate-800 bg-slate-900/40 p-5 sm:grid-cols-2">
+            <label className="space-y-2 sm:col-span-2">
+              <span className={labelShell}>Product Name</span>
+              <input
+                name="name"
+                value={form.name}
+                onChange={updateField}
+                placeholder="Wireless studio headphones"
+                className={fieldShell}
+              />
+            </label>
+
+            <label className="space-y-2">
+              <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-400">
+                <BadgeDollarSign className="h-4 w-4 text-cyan-300" />
+                Price
+              </span>
+              <input
+                name="price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.price}
+                onChange={updateField}
+                placeholder="149.00"
+                className={fieldShell}
+              />
+            </label>
+
+            <label className="space-y-2">
+              <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-400">
+                <Boxes className="h-4 w-4 text-cyan-300" />
+                Stock
+              </span>
+              <input
+                name="stock"
+                type="number"
+                min="0"
+                value={form.stock}
+                onChange={updateField}
+                placeholder="25"
+                className={fieldShell}
+              />
+            </label>
+
+            <label className="space-y-2">
+              <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-slate-400">
+                <Tag className="h-4 w-4 text-cyan-300" />
+                Brand
+              </span>
+              <input
+                name="brand"
+                value={form.brand}
+                onChange={updateField}
+                placeholder="ShopNest"
+                className={fieldShell}
+              />
+            </label>
+
+            <label className="space-y-2">
+              <span className={labelShell}>Category</span>
+              <select name="category" value={form.category} onChange={updateField} className={fieldShell}>
+                <option value="">Select category</option>
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="space-y-2">
+              <span className={labelShell}>Rating</span>
+              <input
+                name="rating"
+                type="number"
+                min="0"
+                max="5"
+                step="0.1"
+                value={form.rating}
+                onChange={updateField}
+                className={fieldShell}
+              />
+            </label>
+
+            <label className="space-y-2">
+              <span className={labelShell}>Reviews</span>
+              <input
+                name="numReviews"
+                type="number"
+                min="0"
+                value={form.numReviews}
+                onChange={updateField}
+                className={fieldShell}
+              />
+            </label>
+
+            <label className="space-y-2 sm:col-span-2">
+              <span className={labelShell}>Description</span>
+              <textarea
+                name="description"
+                rows="6"
+                value={form.description}
+                onChange={updateField}
+                placeholder="Add materials, specs, fit, care notes, and anything shoppers should know."
+                className={`${fieldShell} resize-none leading-6`}
+              />
+            </label>
+          </div>
+
+          <div className="flex flex-col gap-3 border-t border-slate-900 pt-5 sm:flex-row sm:items-center sm:justify-between">
+            {isEditing ? (
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={saving || deleting}
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-rose-900/70 px-4 py-3 text-sm font-bold text-rose-300 transition hover:border-rose-500 hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                Delete Product
+              </button>
+            ) : (
+              <span className="hidden sm:block" />
+            )}
+
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Link
+                to="/products"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-800 px-4 py-3 text-sm font-bold text-slate-300 transition hover:border-slate-700 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+                Cancel
+              </Link>
+              <button
+                type="submit"
+                disabled={saving || deleting}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-400 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+              >
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : isEditing ? (
+                  <Save className="h-4 w-4" />
+                ) : (
+                  <PackagePlus className="h-4 w-4" />
+                )}
+                {saving ? "Saving" : submitLabel}
+              </button>
+            </div>
+          </div>
+        </section>
+      </form>
+
+      {isEditing && (
+        <div className="mx-auto max-w-6xl px-4 pb-10 text-xs text-slate-600 sm:px-6 lg:px-8">
+          <PencilLine className="mr-1 inline h-3.5 w-3.5" />
+          Editing product ID: {productId}
+        </div>
+      )}
+    </main>
   );
 }
 

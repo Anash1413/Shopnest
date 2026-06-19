@@ -29,11 +29,9 @@ exports.createProduct = async ( req ,res , next)=>{
        const {name , price ,  description ,  category , brand , stock,rating,numReviews } = req.body
        let image_url=''
        if(req.file){
-
-        console.log(req.file.path,"product create ")
         const result = await cloudinary.uploader.upload(req.file.path)
         image_url = result.secure_url
-       fs.unlink(req.file.path,(err)=> console.log("error in deletinh uploaded file 011",err))
+       fs.unlink(req.file.path,(err)=> console.log(" deleted uploaded file 011",err))
        }
        const product = await productModel.create({
         name,
@@ -45,6 +43,7 @@ exports.createProduct = async ( req ,res , next)=>{
         stock, rating,numReviews
        })
        if(product){
+         console.log(product)
         return res.json({message:"product created successfully"})
        }
       } catch (error) {

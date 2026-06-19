@@ -43,11 +43,26 @@ function ProductDetail() {
     const fetchProduct = async () => {
       setIsLoading(true)
       try {
+    document.title = 'Product-Details'
+
         const res = await fetch(`/api/product/detail/${id}`)
         if (!res.ok) throw new Error('Product not found')
         const data = await res.json()
         if (data && data.product) {
           setProduct(data.product)
+          
+          // Sync with backend favourites
+          const token = localStorage.getItem("token")
+          if (token) {
+            const favRes = await fetch("/api/favourites", {
+              headers: { "Authorization": `Bearer ${token}` }
+            })
+            if (favRes.ok) {
+              const favData = await favRes.json()
+              const isFav = favData.favourites?.some(item => item._id === data.product._id)
+              setIsFavourite(!!isFav)
+            }
+          }
         } else {
           throw new Error('Product not found')
         }
@@ -75,9 +90,36 @@ function ProductDetail() {
     }
   }
 
-  const handleToggleFavourite = () => {
-    setIsFavourite(!isFavourite)
-    toast.success(isFavourite ? 'Removed from saved items' : 'Saved to favourites')
+  const handleToggleFavourite = async () => {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      toast.error("Please log in to save favourites")
+      return
+    }
+    try {
+      const method = isFavourite ? "DELETE" : "POST"
+      const res = await fetch("/api/favourites", {
+        method: method,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ productId: product._id })
+      })
+      if (!res.ok) throw new Error("Failed to update wishlist")
+      setIsFavourite(!isFavourite)
+      toast.success(isFavourite ? 'Removed from saved items' : 'Saved to favourites', {
+        icon: isFavourite ? '🗑️' : '❤️',
+        style: {
+          borderRadius: '12px',
+          background: '#0f172a',
+          color: '#fff',
+          border: '1px border border-slate-800'
+        }
+      })
+    } catch (err) {
+      toast.error(err.message || "Could not update saved items")
+    }
   }
 
   const handleIncrement = () => {

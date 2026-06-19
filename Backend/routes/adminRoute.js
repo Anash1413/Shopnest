@@ -5,5 +5,5 @@ const { adminAnalytics } = require('../controller/adminAnalytics')
 const adminRouter = express.Router()
 
 adminRouter.get('/alluser' ,protect, IsAdmin, getAllUsers)
-adminRouter.get("/analytics", adminAnalytics)
+adminRouter.get("/analytics", protect, IsAdmin, adminAnalytics)
 module.exports = adminRouter

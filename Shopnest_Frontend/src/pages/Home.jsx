@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import ProductCard from "../components/ProductCard";
 import { Link } from "react-router-dom";
 import { 
@@ -10,6 +10,9 @@ import {
 } from "lucide-react";
 
 function Home() {
+  useEffect(() => {
+        document.title = 'Shopnest' 
+  }, [])
   return (
     <div className="min-h-screen bg-[#070913] text-[#e2e8f0] flex flex-col font-sans overflow-x-hidden">
       
@@ -175,7 +178,7 @@ function Home() {
 
           {/* Grid Layout containing Product Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[4vw] md:gap-[2.5vw]">
-            <ProductCard limit={6}/>
+            <ProductCard limit={6} /> 
           </div>
 
         </div>

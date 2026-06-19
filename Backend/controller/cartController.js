@@ -13,10 +13,10 @@ exports.getCart = async (req, res , next)=>{
 
 exports.addToCart = async (req , res , next) =>{
     try {
-        await userModel.findByIdAndUpdate(req.user._id,
-             { $addToSet: { cart: req.body } },
-             {returnDocument:'after'})
-        return res.json({message : "Product added to cart successfully!"})
+        const user = await userModel.findByIdAndUpdate(req.user._id,
+             { $addToSet: { cart: req.body._id } },
+             { new: true, returnDocument:'after' }).populate('cart')
+        return res.json({cart: user.cart, message : "Product added to cart successfully!"})
     } catch (error) {
         const message = ' error in adding cart '
     console.log(message,error)
@@ -25,8 +25,8 @@ exports.addToCart = async (req , res , next) =>{
 }
 exports.deleteFromCart = async (req , res , next) =>{
     try {
-       const cart = await userModel.findByIdAndUpdate(req.user._id, {$pull:{cart:req.body._id}},{returnDocument:'before'})
-        return res.json({cart:cart.cart, message : "Product deleted from cart successfully!"})
+       const user = await userModel.findByIdAndUpdate(req.user._id, { $pull: { cart: req.body._id } }, { new: true, returnDocument: 'after' }).populate('cart')
+        return res.json({cart: user.cart, message : "Product deleted from cart successfully!"})
     } catch (error) {
         const message = ' error in deleting cart '
     console.log(message,error)

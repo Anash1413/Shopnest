@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { Link } from 'react-router-dom'
 import { Sparkles, Send, ShieldCheck, ShieldAlert, ArrowLeft } from 'lucide-react'
 
 const OTP = () => {
+  useEffect(() => {
+        document.title = 'Verify-OTP' 
+  }, [])
   const { user, login ,token} = useAuth()
   const [confirm, setconfirm] = useState(false)
   const [loading, setloading] = useState(false)
@@ -49,7 +52,7 @@ const OTP = () => {
     setError(null)
     setSuccess(null)
     try {
-      const res = await fetch('api/auth/verify-otp', {
+      const res = await fetch('api/auth/verify', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

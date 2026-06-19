@@ -13,7 +13,8 @@ import {
   X,
   Layers,
   LayoutDashboard,
-  Plus
+  Plus,
+  Heart
 } from 'lucide-react';
 
 const Navbar = () => {
@@ -62,13 +63,21 @@ const Navbar = () => {
               <ShoppingBag className="h-4 w-4" />
               Products
             </NavLink>
-            {!isAdmin && <NavLink to="/cart" className={navLinkClass}>
-              <ShoppingCart className="h-4 w-4" />
-              Cart
-            </NavLink> }
+            {!isAdmin && (
+              <>
+                <NavLink to="/favourites" className={navLinkClass}>
+                  <Heart className="h-4 w-4" />
+                  Wishlist
+                </NavLink>
+                <NavLink to="/cart" className={navLinkClass}>
+                  <ShoppingCart className="h-4 w-4" />
+                  Cart
+                </NavLink>
+              </>
+            )}
             {isAdmin && (
               <>
-                <NavLink to="/admin" className={navLinkClass}>
+                <NavLink to="/admin" className={navLinkClass} end>
                   <LayoutDashboard className="h-4 w-4" />
                   Dashboard
                 </NavLink>
@@ -167,15 +176,21 @@ const Navbar = () => {
                 <ShoppingBag className="h-5 w-5" />
                 Products
               </NavLink>
-              {!isAdmin && 
-                <NavLink to="/cart" onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
-                  <ShoppingCart className="h-5 w-5" />
-                  Cart
-                </NavLink>
-              }
+              {!isAdmin && (
+                <>
+                  <NavLink to="/favourites" onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
+                    <Heart className="h-5 w-5" />
+                    Wishlist
+                  </NavLink>
+                  <NavLink to="/cart" onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
+                    <ShoppingCart className="h-5 w-5" />
+                    Cart
+                  </NavLink>
+                </>
+              )}
               {isAdmin && (
                 <>
-                  <NavLink to="/admin" onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
+                  <NavLink to="/admin" onClick={() => setIsOpen(false)} className={mobileNavLinkClass} end>
                     <LayoutDashboard className="h-5 w-5" />
                     Dashboard
                   </NavLink>
@@ -185,7 +200,7 @@ const Navbar = () => {
                   </NavLink>
                 </>
               )}
-              <NavLink to={isAdmin ? "/admin-orders" : "/orders"} onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
+              <NavLink to={isAdmin ? "/admin/orders" : "/orders"} onClick={() => setIsOpen(false)} className={mobileNavLinkClass}>
                 <ClipboardList className="h-5 w-5" />
                 Orders
               </NavLink>
